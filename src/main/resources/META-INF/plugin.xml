@@ -1,0 +1,60 @@
+<!--Licensed to Elasticsearch B.V. under one or more contributor-->
+<!--license agreements. See the NOTICE file distributed with-->
+<!--this work for additional information regarding copyright-->
+<!--ownership. Elasticsearch B.V. licenses this file to you under-->
+<!--the Apache License, Version 2.0 (the "License"); you may-->
+<!--not use this file except in compliance with the License.-->
+<!--You may obtain a copy of the License at-->
+
+<!--    http://www.apache.org/licenses/LICENSE-2.0-->
+
+<!--Unless required by applicable law or agreed to in writing,-->
+<!--software distributed under the License is distributed on an-->
+<!--"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY-->
+<!--KIND, either express or implied.  See the License for the-->
+<!--specific language governing permissions and limitations-->
+<!--under the License.-->
+
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+  <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+  <id>co.elastic.esql-idea-plugin</id>
+
+  <!-- Public plugin name should be written in Title Case.
+       Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+  <name>Esql</name>
+
+  <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+  <vendor url="https://www.elastic.co/">Elastic</vendor>
+
+  <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+       Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
+  <description><![CDATA[
+      IntelliJ IDEA Plugin to provide ESQL autocomplete, syntax check and documentation to strings.
+    ]]></description>
+
+  <!-- Product and plugin compatibility requirements.
+       Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lang</depends>
+  <depends>com.intellij.java</depends>
+
+  <!-- Extension points defined by the plugin.
+       Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+  <extensions defaultExtensionNs="com.intellij">
+    <postStartupActivity implementation="co.elastic.plugin.ElasticPluginStartup"/>
+    <applicationService serviceImplementation="co.elastic.plugin.settings.EsqlPluginSettings"/>
+    <applicationService serviceImplementation="co.elastic.plugin.connection.EsqlPluginQueryManager"/>
+    <projectConfigurable groupId="language" instance="co.elastic.plugin.settings.EsqlPluginConfigurable"/>
+    <completion.contributor
+      implementationClass="co.elastic.plugin.autocomplete.EsqlCompletionContributor"
+      language="any"
+    />
+    <annotator language="JAVA" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
+    <annotator language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
+    <annotator language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
+
+    <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>
+
+  </extensions>
+</idea-plugin>
