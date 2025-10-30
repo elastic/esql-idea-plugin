@@ -34,3 +34,7 @@ By using the plugin settings, the plugin can be connected to an Elasticsearch se
 Currently, it only works with `FROM`, `SORT`, `EVAL` and `WHERE`.  
 
 ![Screenshot](/readme-resources/settings.gif)
+
+### Test it locally
+
+By running `gradle runIde` (if you want to test .kt files, Kotlin must be configured in the sandbox IDE).
