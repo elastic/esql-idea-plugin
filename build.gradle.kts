@@ -71,7 +71,7 @@ intellijPlatform {
         }
 
         changeNotes = """
-          Initial version
+          Updating resources to be compliant with guidelines
         """
     }
 }
