@@ -30,7 +30,7 @@
   <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
        Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
   <description><![CDATA[
-      IntelliJ IDEA Plugin to provide ESQL autocomplete, syntax check and documentation to strings.
+      Experimental IntelliJ IDEA Plugin to provide ESQL autocomplete, syntax check and documentation to strings.
     ]]></description>
 
   <!-- Product and plugin compatibility requirements.
