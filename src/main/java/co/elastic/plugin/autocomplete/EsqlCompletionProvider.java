@@ -49,16 +49,15 @@ import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
 
 public class EsqlCompletionProvider extends CompletionProvider<CompletionParameters> {
 
-    EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
     EsqlPluginQueryManager queryManager =
         ApplicationManager.getApplication().getService(EsqlPluginQueryManager.class);
 
-    private enum ServerOperation {
+    enum ServerOperation {
         indices,
         fields
     }
 
-    private static final Map<Integer, ServerOperation> serverOperationsMap =
+    static final Map<Integer, ServerOperation> serverOperationsMap =
         Map.ofEntries(
             Map.entry(EsqlBaseParser.FROM, ServerOperation.indices),
             Map.entry(EsqlBaseParser.SORT, ServerOperation.fields),
@@ -66,9 +65,16 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             Map.entry(EsqlBaseParser.WHERE, ServerOperation.fields)
         );
 
-    static List<Completion> computeCompletions(String text) {
+    static List<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
         Parser.ParserInfo parserInfo = Parser.parse(text);
-        List<Completion> completions = new ArrayList<>(); CompletionCore.completions(parserInfo);
+        List<Completion> completions = new ArrayList<>();
+        completions.addAll(computeTokenCompletions(text, parserInfo));
+        completions.addAll(computeSchemaDependentCompletions(parserInfo, queryManager));
+        return completions;
+    }
+
+    private static List<Completion> computeTokenCompletions(String text, Parser.ParserInfo parserInfo) {
+        List<Completion> completions = new ArrayList<>();
 
         Token lastToken = parserInfo.lastToken();
         if (lastToken != null && lastToken.getType() == EsqlBaseParser.METADATA) {
@@ -119,6 +125,58 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         return completions;
     }
 
+    private static List<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
+                                                                      EsqlPluginQueryManager queryManager) {
+        List<Completion> completions = new ArrayList<>();
+        if (queryManager == null) {
+            return completions;
+        }
+
+        Token lastToken = parserInfo.lastToken();
+        if (lastToken == null) {
+            return completions;
+        }
+
+        ServerOperation serverOp = serverOperationsMap.get(lastToken.getType());
+        if (serverOp == null) {
+            return completions;
+        }
+
+        switch (serverOp) {
+            case indices: {
+                for (String index : queryManager.getIndices()) {
+                    completions.add(new Completion(index, Completion.Kind.KEYWORD));
+                }
+                break;
+            }
+            case fields: {
+                String index = findIndexFromTokens(parserInfo.tokens());
+                if (!index.isEmpty()) {
+                    for (String field : queryManager.getFields(index)) {
+                        completions.add(new Completion(field, Completion.Kind.KEYWORD));
+                    }
+                }
+                break;
+            }
+        }
+
+        return completions;
+    }
+
+    static String findIndexFromTokens(List<Token> tokens) {
+        for (int i = 0; i < tokens.size() - 1; i++) {
+            if (tokens.get(i).getType() == EsqlBaseParser.FROM) {
+                for (int j = i + 1; j < tokens.size(); j++) {
+                    Token next = tokens.get(j);
+                    if (next.getType() != Token.EOF && next.getChannel() == Token.DEFAULT_CHANNEL) {
+                        return next.getText().trim();
+                    }
+                }
+            }
+        }
+        return "";
+    }
+
     @Override
     protected void addCompletions(@NotNull CompletionParameters parameters,
                                   @NotNull ProcessingContext context,
@@ -136,8 +194,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             return;
         }
 
-
-        var completions = computeCompletions(text);
+        var completions = computeCompletions(text, queryManager);
         for (Completion c : completions) {
             int priority = switch (c.kind()) {
                 case PIPE -> 6;
@@ -147,60 +204,6 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                 .addElement(PrioritizedLookupElement.withPriority(
                     LookupElementBuilder.create(c.text()), priority));
         }
-
-        addSchemaDependentCompletions(result, text);
-    }
-
-    private void addSchemaDependentCompletions(@NotNull CompletionResultSet result,
-                                                String text) {
-        if (settings.getServerUrl().isEmpty() || settings.getApiKey().isEmpty()) {
-            return;
-        }
-
-        Parser.ParserInfo parserInfo = Parser.parse(text);
-        Token lastToken = parserInfo.lastToken();
-        if (lastToken == null) {
-            return;
-        }
-
-        ServerOperation serverOp = serverOperationsMap.get(lastToken.getType());
-        if (serverOp == null) {
-            return;
-        }
-
-        switch (serverOp) {
-            case indices: {
-                List<String> indices = queryManager.getIndices();
-                for (String index : indices) {
-                    insertLookupWithColor(result, index);
-                }
-                break;
-            }
-            case fields: {
-                String index = findIndexFromTokens(parserInfo.tokens());
-                if (index.isEmpty()) return;
-
-                List<String> fields = queryManager.getFields(index);
-                for (String field : fields) {
-                    insertLookupWithColor(result, field);
-                }
-                break;
-            }
-        }
-    }
-
-    private static String findIndexFromTokens(List<Token> tokens) {
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            if (tokens.get(i).getType() == EsqlBaseParser.FROM) {
-                for (int j = i + 1; j < tokens.size(); j++) {
-                    Token next = tokens.get(j);
-                    if (next.getType() != Token.EOF && next.getChannel() == Token.DEFAULT_CHANNEL) {
-                        return next.getText().trim();
-                    }
-                }
-            }
-        }
-        return "";
     }
 
     private static void insertLookupWithColor(@NotNull CompletionResultSet result, String token) {
