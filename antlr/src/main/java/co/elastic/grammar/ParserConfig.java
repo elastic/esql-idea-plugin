@@ -21,7 +21,7 @@ public abstract class ParserConfig extends Parser {
         return config == null || config.isDevVersion();
     }
 
-    void setEsqlConfig(EsqlConfig config) {
+    public void setEsqlConfig(EsqlConfig config) {
         this.config = config;
     }
 }

@@ -14,10 +14,6 @@ public class EsqlConfig {
         this.isDevVersion = isDevVersion;
     }
 
-    public EsqlConfig() {
-        this(true);
-    }
-
     public boolean isDevVersion() {
         return isDevVersion;
     }

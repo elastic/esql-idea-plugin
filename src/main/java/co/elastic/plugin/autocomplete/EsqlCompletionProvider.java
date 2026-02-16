@@ -18,9 +18,7 @@
  */
 package co.elastic.plugin.autocomplete;
 
-import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
-import co.elastic.grammar.completion.CompletionCoreApiKt;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.intellij.codeInsight.completion.CompletionParameters;
@@ -32,7 +30,6 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.codeInsight.lookup.LookupElementDecorator;
 import com.intellij.codeInsight.lookup.LookupElementPresentation;
 import com.intellij.codeInsight.lookup.LookupElementRenderer;
-import com.intellij.ide.projectWizard.NewProjectWizardConstants;
 import com.intellij.lang.Language;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.JBColor;
@@ -96,13 +93,12 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         autofillQuery(result, text);
 
         // using antlr grammar to figure out next token
-        Set<Integer> expectedTokenTypes = CompletionCoreApiKt.completions(text, EsqlBaseLexer.class,
-            EsqlBaseParser.class);
+        Set<Integer> tokenCompletions = CompletionCore.completions(text).getTokens().keySet();
 
         // try to complete string if there's no suggestions
         // and if the full text is short enough that we're probably at the beginning of the query
         // source commands first, just one
-        if (expectedTokenTypes.isEmpty() && text.length() < STARTER_QUERY) {
+        if (tokenCompletions.isEmpty() && text.length() < STARTER_QUERY) {
             for (String source : SOURCE_COMMANDS) {
                 if (source.startsWith(text)) {
                     result.withPrefixMatcher(new PermissivePrefixMatcher(text))
@@ -112,7 +108,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             }
             return;
         }
-        putResult(result, expectedTokenTypes);
+        putResult(result, tokenCompletions);
     }
 
     private static void putResult(@NotNull CompletionResultSet result, Set<Integer> expectedTokenTypes) {

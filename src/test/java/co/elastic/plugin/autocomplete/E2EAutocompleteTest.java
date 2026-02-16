@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-public class EsqlAutocompleteTest extends BasePlatformTestCase {
+public class E2EAutocompleteTest extends BasePlatformTestCase {
 
     @Override
     protected void setUp() throws Exception {
@@ -153,7 +153,7 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(17, elements.length);
+        Assert.assertEquals(21, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -290,7 +290,7 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(17, elements.length);
+        Assert.assertEquals(21, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
