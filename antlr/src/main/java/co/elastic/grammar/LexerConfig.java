@@ -1,11 +1,9 @@
-/*
+package co.elastic.grammar;/*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
  * or more contributor license agreements. Licensed under the Elastic License
  * 2.0; you may not use this file except in compliance with the Elastic License
  * 2.0.
  */
-
-package co.elastic.grammar;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Lexer;
@@ -17,6 +15,7 @@ public abstract class LexerConfig extends Lexer {
 
     // is null when running inside the IDEA plugin
     EsqlConfig config;
+    private int promqlDepth = 0;
 
     public LexerConfig() {}
 
@@ -28,7 +27,29 @@ public abstract class LexerConfig extends Lexer {
         return config == null || config.isDevVersion();
     }
 
-    public void setEsqlConfig(EsqlConfig config) {
+    void setEsqlConfig(EsqlConfig config) {
         this.config = config;
+    }
+
+    // Needed by the Promql command
+    void incPromqlDepth() {
+        promqlDepth++;
+    }
+
+    void decPromqlDepth() {
+        if (promqlDepth == 0) {
+            throw new IllegalStateException("Invalid PromQL command, unexpected '('");
+        }
+        promqlDepth--;
+    }
+
+    void resetPromqlDepth() {
+        if (promqlDepth != 0) {
+            throw new IllegalStateException("Invalid PromQL declaration, missing [{}] [{}] parenthesis");
+        }
+    }
+
+    boolean isPromqlQuery() {
+        return promqlDepth > 0;
     }
 }

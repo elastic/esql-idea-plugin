@@ -37,4 +37,4 @@ Currently, it only works with `FROM`, `SORT`, `EVAL` and `WHERE`.
 
 ### Test it locally
 
-By running `gradle runIde` (if you want to test .kt files, Kotlin must be configured in the sandbox IDE).
+By running `./gradlew runIde` (if you want to test .kt files, Kotlin must be configured in the sandbox IDE).
