@@ -126,9 +126,12 @@ public class EsqlAnnotator implements Annotator {
     private void applyColor(@NotNull PsiElement element, @NotNull AnnotationHolder holder,
                             @NotNull String text) {
 
-        // showing plugin icon regardless
+        // extract query text (strip triple quotes and trim)
+        String query = text.substring(3, text.length() - 3).trim();
+
+        // showing plugin icon - clicking it executes the query
         holder.newAnnotation(HighlightSeverity.INFORMATION, "")
-            .gutterIconRenderer(new EsqlIcon())
+            .gutterIconRenderer(new EsqlIcon(element.getProject(), query))
             .range(element.getTextRange()).create();
 
         // different color for different types of keywords
