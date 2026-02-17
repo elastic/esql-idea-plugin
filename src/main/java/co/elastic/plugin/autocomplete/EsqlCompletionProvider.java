@@ -68,11 +68,14 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         String text = elementAtOffset.getText();
         int caretOffset = parameters.getOffset();
         int elementStart = elementAtOffset.getTextRange().getStartOffset();
-        int relativeOffset = caretOffset - elementStart;
 
+        // Get the text until the cursor
+        int relativeOffset = caretOffset - elementStart;
+        text = text.substring(0, relativeOffset);
+        // removing triple quotes if java
         if (elementAtOffset.getLanguage().is(Language.findLanguageByID("JAVA"))) {
             // skip opening """ (3 chars) and spaces
-            text = text.substring(3, relativeOffset);
+            text = text.substring(3);
         }
 
         if (!checkEsqlCommentAbove(elementAtOffset)) {
@@ -125,6 +128,8 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         Set<Completion> completions = new HashSet<>();
 
         Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
+
+        // metadata special case
         if (lastNonSpaceToken != null && lastNonSpaceToken.getType() == EsqlBaseParser.METADATA) {
             for (String opt : METADATA_OPTIONS) {
                 completions.add(new Completion(opt, Completion.Kind.METADATA));
@@ -206,7 +211,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                 break;
             }
             case fields: {
-                String index = findIndexFromTokens(parserInfo.tokens());
+                String index = findQueriedIndex(parserInfo.tokens());
                 if (!index.isEmpty()) {
                     for (String field : queryManager.getFields(index)) {
                         completions.add(new Completion(field, Completion.Kind.FIELD));
@@ -229,7 +234,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         return codeCompletionCode.collectCandidates(parser.getTokenStream(), caretIndex, null);
     }
 
-    static String findIndexFromTokens(List<Token> tokens) {
+    static String findQueriedIndex(List<Token> tokens) {
         for (int i = 0; i < tokens.size() - 1; i++) {
             if (tokens.get(i).getType() == EsqlBaseParser.FROM) {
                 for (int j = i + 1; j < tokens.size(); j++) {

@@ -43,7 +43,6 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         return false;
     }
 
-    @Test
     public void testCompletionsJava() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset
@@ -191,7 +190,6 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
 
     }
 
-    @Test
     public void testCompletionsKotlin() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset
@@ -335,5 +333,64 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
             }
             """);
 
+    }
+
+    public void testCaretInTheMiddleOfASentenceJava() {
+        // <caret> is a special symbol, allowing to move the cursor and
+        // type at the desired offset
+        myFixture.configureByText("TestJava.java", """
+            package co.elastic.plugin;
+            
+            public class TestJava {
+                public static void main(String[] args) {
+                // ES|QL
+                String a = ""\"
+                        FROM <caret> | EVAL x = 3
+                        ""\";
+                    }
+            }
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
+    }
+
+    public void testCaretInTheMiddleOfASentenceKotlin() {
+        // <caret> is a special symbol, allowing to move the cursor and
+        // type at the desired offset
+        // EditorTestUtil.CARET_TAG
+        myFixture.configureByText(
+            "TestKotlin.kt", """
+                package main.kotlin
+                
+                fun main() {
+                
+                    // ES|QL
+                    val a = ""\"
+                            FROM <caret> | EVAL x = 3
+                            ""\"
+                }
+                """
+        );
+
+        // making sure the test env recognizes kotlin files
+        Assert.assertTrue(myFixture.getFile().getLanguage().is(Language.findLanguageByID("kotlin")));
+
+        WriteCommandAction.runWriteCommandAction(
+            getProject(),
+            () -> myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset())
+        );
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
     }
 }
