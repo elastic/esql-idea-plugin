@@ -44,20 +44,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
     private final EsqlPluginQueryManager queryManager =
         ApplicationManager.getApplication().getService(EsqlPluginQueryManager.class);
 
-    private enum ServerOperation {
-        indices,
-        fields
-    }
-
     private static Parser.ParserInfo parserInfo;
-
-    private static final Map<Integer, ServerOperation> serverOperationsMap =
-        Map.ofEntries(
-            Map.entry(EsqlBaseParser.FROM, ServerOperation.indices),
-            Map.entry(EsqlBaseParser.SORT, ServerOperation.fields),
-            Map.entry(EsqlBaseParser.EVAL, ServerOperation.fields),
-            Map.entry(EsqlBaseParser.WHERE, ServerOperation.fields)
-        );
 
     @Override
     protected void addCompletions(@NotNull CompletionParameters parameters,
@@ -118,25 +105,32 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
     static Set<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
         parserInfo = Parser.parse(text);
+        var candidates = completionCandidates(parserInfo);
         Set<Completion> completions = new HashSet<>();
-        completions.addAll(computeTokenCompletions(parserInfo));
-        completions.addAll(computeSchemaDependentCompletions(parserInfo, queryManager));
+        completions.addAll(computeTokenCompletions(candidates));
+        completions.addAll(computeSchemaDependentCompletions(parserInfo, candidates, queryManager));
         return completions;
     }
 
-    private static Set<Completion> computeTokenCompletions(Parser.ParserInfo parserInfo) {
+    private static Set<Completion> computeTokenCompletions(CandidatesCollection candidates) {
         Set<Completion> completions = new HashSet<>();
 
-        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_indexPattern)) {
+            completions.add(new Completion("{string}", Completion.Kind.PLACEHOLDER));
+        }
 
-        // metadata special case
-        if (lastNonSpaceToken != null && lastNonSpaceToken.getType() == EsqlBaseParser.METADATA) {
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_qualifiedName)) {
+            completions.add(new Completion("{var}", Completion.Kind.PLACEHOLDER));
+        }
+
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_metadata)) {
+            completions.add(new Completion("METADATA", Completion.Kind.KEYWORD));
             for (String opt : METADATA_OPTIONS) {
                 completions.add(new Completion(opt, Completion.Kind.METADATA));
             }
         }
 
-        Set<Integer> tokenCompletions = completionCandidates(parserInfo).tokens.keySet();
+        Set<Integer> tokenCompletions = candidates.tokens.keySet();
 
         for (Integer tokenType : tokenCompletions) {
             switch (tokenType) {
@@ -187,37 +181,25 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
     }
 
     private static Set<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
+                                                                      CandidatesCollection candidates,
                                                                       EsqlPluginQueryManager queryManager) {
         Set<Completion> completions = new HashSet<>();
         if (queryManager == null) {
             return completions;
         }
 
-        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
-        if (lastNonSpaceToken == null) {
-            return completions;
-        }
-
-        ServerOperation serverOp = serverOperationsMap.get(lastNonSpaceToken.getType());
-        if (serverOp == null) {
-            return completions;
-        }
-
-        switch (serverOp) {
-            case indices: {
-                for (String index : queryManager.getIndices()) {
-                    completions.add(new Completion(index, Completion.Kind.NAME));
-                }
-                break;
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_indexPattern)) {
+            for (String index : queryManager.getIndices()) {
+                completions.add(new Completion(index, Completion.Kind.NAME));
             }
-            case fields: {
-                String index = findQueriedIndex(parserInfo.tokens());
-                if (!index.isEmpty()) {
-                    for (String field : queryManager.getFields(index)) {
-                        completions.add(new Completion(field, Completion.Kind.FIELD));
-                    }
+        }
+
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_qualifiedName)) {
+            String index = findQueriedIndex(parserInfo.tokens());
+            if (!index.isEmpty()) {
+                for (String field : queryManager.getFields(index)) {
+                    completions.add(new Completion(field, Completion.Kind.FIELD));
                 }
-                break;
             }
         }
 
@@ -230,6 +212,9 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         var tokens = parserInfo.tokens();
 
         var codeCompletionCode = new CodeCompletionCore(parser);
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_indexPattern);
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_qualifiedName);
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadata);
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
     }
