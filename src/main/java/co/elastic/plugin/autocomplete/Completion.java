@@ -23,6 +23,8 @@ public record Completion(String text, Kind kind) {
         KEYWORD,
         FUNCTION,
         PLACEHOLDER,
+        NAME,
+        FIELD,
         PIPE
     }
 }

@@ -18,18 +18,14 @@
  */
 package co.elastic.plugin.autocomplete;
 
+import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
-import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
 import com.intellij.codeInsight.completion.PrioritizedLookupElement;
-import com.intellij.codeInsight.lookup.LookupElement;
-import com.intellij.codeInsight.lookup.LookupElementBuilder;
-import com.intellij.codeInsight.lookup.LookupElementDecorator;
-import com.intellij.codeInsight.lookup.LookupElementPresentation;
-import com.intellij.codeInsight.lookup.LookupElementRenderer;
+import com.intellij.codeInsight.lookup.*;
 import com.intellij.lang.Language;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.JBColor;
@@ -37,15 +33,9 @@ import com.intellij.util.ProcessingContext;
 import org.antlr.v4.runtime.Token;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import static co.elastic.plugin.CommonUtils.FUNCTIONS;
-import static co.elastic.plugin.CommonUtils.METADATA_OPTIONS;
-import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
+import static co.elastic.plugin.CommonUtils.*;
 
 public class EsqlCompletionProvider extends CompletionProvider<CompletionParameters> {
 
@@ -57,6 +47,8 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         fields
     }
 
+    static Parser.ParserInfo parserInfo;
+
     static final Map<Integer, ServerOperation> serverOperationsMap =
         Map.ofEntries(
             Map.entry(EsqlBaseParser.FROM, ServerOperation.indices),
@@ -65,19 +57,19 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             Map.entry(EsqlBaseParser.WHERE, ServerOperation.fields)
         );
 
-    static List<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
-        Parser.ParserInfo parserInfo = Parser.parse(text);
-        List<Completion> completions = new ArrayList<>();
-        completions.addAll(computeTokenCompletions(text, parserInfo));
+    static Set<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
+        parserInfo = Parser.parse(text);
+        Set<Completion> completions = new HashSet<>();
+        completions.addAll(computeTokenCompletions(parserInfo));
         completions.addAll(computeSchemaDependentCompletions(parserInfo, queryManager));
         return completions;
     }
 
-    private static List<Completion> computeTokenCompletions(String text, Parser.ParserInfo parserInfo) {
-        List<Completion> completions = new ArrayList<>();
+    private static Set<Completion> computeTokenCompletions(Parser.ParserInfo parserInfo) {
+        Set<Completion> completions = new HashSet<>();
 
-        Token lastToken = parserInfo.lastToken();
-        if (lastToken != null && lastToken.getType() == EsqlBaseParser.METADATA) {
+        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
+        if (lastNonSpaceToken != null && lastNonSpaceToken.getType() == EsqlBaseParser.METADATA) {
             for (String opt : METADATA_OPTIONS) {
                 completions.add(new Completion(opt, Completion.Kind.KEYWORD));
             }
@@ -125,19 +117,19 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         return completions;
     }
 
-    private static List<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
+    private static Set<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
                                                                       EsqlPluginQueryManager queryManager) {
-        List<Completion> completions = new ArrayList<>();
+        Set<Completion> completions = new HashSet<>();
         if (queryManager == null) {
             return completions;
         }
 
-        Token lastToken = parserInfo.lastToken();
-        if (lastToken == null) {
+        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
+        if (lastNonSpaceToken == null) {
             return completions;
         }
 
-        ServerOperation serverOp = serverOperationsMap.get(lastToken.getType());
+        ServerOperation serverOp = serverOperationsMap.get(lastNonSpaceToken.getType());
         if (serverOp == null) {
             return completions;
         }
@@ -145,7 +137,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         switch (serverOp) {
             case indices: {
                 for (String index : queryManager.getIndices()) {
-                    completions.add(new Completion(index, Completion.Kind.KEYWORD));
+                    completions.add(new Completion(index, Completion.Kind.NAME));
                 }
                 break;
             }
@@ -153,7 +145,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                 String index = findIndexFromTokens(parserInfo.tokens());
                 if (!index.isEmpty()) {
                     for (String field : queryManager.getFields(index)) {
-                        completions.add(new Completion(field, Completion.Kind.KEYWORD));
+                        completions.add(new Completion(field, Completion.Kind.FIELD));
                     }
                 }
                 break;
@@ -184,23 +176,28 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
         var elementAtOffset = parameters.getOriginalPosition();
         String text = elementAtOffset.getText();
+        int caretOffset = parameters.getOffset();
+        int elementStart = elementAtOffset.getTextRange().getStartOffset();
+        int relativeOffset = caretOffset - elementStart;
 
         if (elementAtOffset.getLanguage().is(Language.findLanguageByID("JAVA"))) {
-            text = text.substring(3, text.length() - 3);
+            // skip opening """ (3 chars) and spaces
+            text = text.substring(3, relativeOffset);
         }
-        text = text.trim();
 
         if (!checkEsqlCommentAbove(elementAtOffset)) {
             return;
         }
 
         var completions = computeCompletions(text, queryManager);
+        var lastToken = parserInfo.tokens().getLast();
         for (Completion c : completions) {
             int priority = switch (c.kind()) {
                 case PIPE -> 6;
                 default -> 5;
             };
-            result.withPrefixMatcher(new PermissivePrefixMatcher(text))
+            // TODO Nacho: maybe we should be grabbing the last token here
+            result.withPrefixMatcher(lastToken.getChannel() == EsqlBaseLexer.DEFAULT_TOKEN_CHANNEL ? new PermissivePrefixMatcher(lastToken.getText()) : new PermissivePrefixMatcher())
                 .addElement(PrioritizedLookupElement.withPriority(
                     LookupElementBuilder.create(c.text()), priority));
         }

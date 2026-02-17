@@ -55,7 +55,6 @@ public final class EsqlPluginQueryManagerImpl implements EsqlPluginQueryManager 
         return result;
     }
 
-    @Override
     public void startQueryThreadPool() {
         if (!settings.getServerUrl().isEmpty() && !settings.getApiKey().isEmpty()) {
             if (currentTask != null) {

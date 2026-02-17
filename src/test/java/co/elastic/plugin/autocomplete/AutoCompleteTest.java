@@ -54,33 +54,28 @@ public class AutoCompleteTest {
     @Test
     public void testStartedQuery() {
         var completions = EsqlCompletionProvider.computeCompletions("FR", null);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("FROM"));
-        Assert.assertTrue(texts.contains("ROW"));
-        Assert.assertTrue(texts.contains("SHOW"));
-        Assert.assertTrue(texts.contains("TS"));
-        Assert.assertTrue(texts.contains("PROMQL"));
-        Assert.assertTrue(completions.stream().allMatch(c -> c.kind() == Completion.Kind.KEYWORD));
+        Assert.assertTrue(completions.contains(new Completion("FROM", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("ROW", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("SHOW", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("TS", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("PROMQL", Completion.Kind.KEYWORD)));
     }
 
     @Test
     public void testEmptyQuery() {
         var completions = EsqlCompletionProvider.computeCompletions("", null);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("FROM"));
-        Assert.assertTrue(texts.contains("ROW"));
-        Assert.assertTrue(texts.contains("SHOW"));
-        Assert.assertTrue(texts.contains("TS"));
-        Assert.assertTrue(texts.contains("PROMQL"));
-        Assert.assertTrue(completions.stream().allMatch(c -> c.kind() == Completion.Kind.KEYWORD));
+        Assert.assertTrue(completions.contains(new Completion("FROM", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("ROW", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("SHOW", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("TS", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("PROMQL", Completion.Kind.KEYWORD)));
     }
 
     @Test
     public void testIndexCompletion() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM ", null);
 
+        Assert.assertEquals(1, completions.size());
         Assert.assertTrue(
             completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER))
         );
@@ -110,15 +105,13 @@ public class AutoCompleteTest {
     @Test
     public void testAfterPipeExpectsCommands() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM index | ", null);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("WHERE"));
-        Assert.assertTrue(texts.contains("EVAL"));
-        Assert.assertTrue(texts.contains("SORT"));
-        Assert.assertTrue(texts.contains("LIMIT"));
-        Assert.assertTrue(texts.contains("STATS"));
-        Assert.assertTrue(texts.contains("KEEP"));
-        Assert.assertTrue(texts.contains("DROP"));
+        Assert.assertTrue(completions.contains(new Completion("WHERE", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("EVAL", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("SORT", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("LIMIT", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("STATS", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("KEEP", Completion.Kind.KEYWORD)));
+        Assert.assertTrue(completions.contains(new Completion("DROP", Completion.Kind.KEYWORD)));
     }
 
     @Test
@@ -152,57 +145,45 @@ public class AutoCompleteTest {
     @Test
     public void testFromCompletesWithIndices() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM ", STUB_QUERY_MANAGER);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("my-index"));
-        Assert.assertTrue(texts.contains("logs-2024"));
+        Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
+        Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
     }
 
     @Test
     public void testWhereCompletesWithFields() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | WHERE ", STUB_QUERY_MANAGER);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("field1"));
-        Assert.assertTrue(texts.contains("field2"));
-        Assert.assertTrue(texts.contains("@timestamp"));
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
     }
 
     @Test
     public void testSortCompletesWithFields() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | SORT ", STUB_QUERY_MANAGER);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("field1"));
-        Assert.assertTrue(texts.contains("field2"));
-        Assert.assertTrue(texts.contains("@timestamp"));
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
     }
 
     @Test
     public void testEvalCompletesWithFields() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | EVAL ", STUB_QUERY_MANAGER);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertTrue(texts.contains("field1"));
-        Assert.assertTrue(texts.contains("field2"));
-        Assert.assertTrue(texts.contains("@timestamp"));
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
     }
 
     @Test
     public void testFieldsNotReturnedForUnknownIndex() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM unknown | WHERE ", STUB_QUERY_MANAGER);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertFalse(texts.contains("field1"));
-        Assert.assertFalse(texts.contains("field2"));
+        Assert.assertFalse(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertFalse(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
     }
 
     @Test
     public void testNoSchemaCompletionsWithNullQueryManager() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM ", null);
-
-        Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
-        Assert.assertFalse(texts.contains("my-index"));
-        Assert.assertFalse(texts.contains("logs-2024"));
+        Assert.assertFalse(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
+        Assert.assertFalse(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
     }
 }

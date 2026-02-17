@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-public class E2EAutocompleteTest extends BasePlatformTestCase {
+public class ITAutocompleteTest extends BasePlatformTestCase {
 
     @Override
     protected void setUp() throws Exception {
@@ -64,10 +64,20 @@ public class E2EAutocompleteTest extends BasePlatformTestCase {
         WriteCommandAction.runWriteCommandAction(getProject(), () ->
             myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
 
-        // should autocomplete to FROM
-        // completeBasic returns null if it completed the only available result
         myFixture.type("FR");
-        Assert.assertNull(myFixture.completeBasic());
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
 
         myFixture.checkResult("""
             package co.elastic.plugin;
@@ -204,10 +214,20 @@ public class E2EAutocompleteTest extends BasePlatformTestCase {
         WriteCommandAction.runWriteCommandAction(getProject(), () ->
             myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
 
-        // should autocomplete to FROM
-        // completeBasic returns null if it completed the only available result
         myFixture.type("FR");
-        Assert.assertNull(myFixture.completeBasic());
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
 
         myFixture.checkResult("""
             package main.kotlin
