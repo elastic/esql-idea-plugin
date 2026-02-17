@@ -30,17 +30,7 @@ import java.util.List;
 
 
 public class Parser {
-    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, Token lastNonSpacetoken) {}
-
-    private static Token getLastNonSpaceToken(List<Token> tokens) {
-        for (int i = tokens.size() - 1; i >= 0; i--) {
-            Token t = tokens.get(i);
-            if (t.getChannel() == Token.DEFAULT_CHANNEL) {
-                return t;
-            }
-        }
-        return null;
-    }
+    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens) {}
 
     public static Parser.ParserInfo parse(String query) {
         EsqlConfig config = new EsqlConfig(false);
@@ -55,11 +45,10 @@ public class Parser {
         var tokens = new ArrayList<>(tokenStream.getTokens());
         // Remove EOF
         tokens.removeLast();
-        var lastToken = getLastNonSpaceToken(tokens);
         EsqlBaseParser parser = new EsqlBaseParser(tokenStream);
         parser.removeErrorListeners();
         parser.setEsqlConfig(config);
 
-        return new ParserInfo(parser, tokens, lastToken);
+        return new ParserInfo(parser, tokens);
     }
 }
