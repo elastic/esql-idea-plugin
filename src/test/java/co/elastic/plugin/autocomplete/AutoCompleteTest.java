@@ -72,6 +72,12 @@ public class AutoCompleteTest {
     }
 
     @Test
+    public void testLowerCaseQuery() {
+        var completions = EsqlCompletionProvider.computeCompletions("from index | EV", null);
+        Assert.assertTrue(completions.contains(new Completion("EVAL", Completion.Kind.KEYWORD)));
+    }
+
+    @Test
     public void testIndexCompletion() {
         var completions = EsqlCompletionProvider.computeCompletions("FROM ", null);
 

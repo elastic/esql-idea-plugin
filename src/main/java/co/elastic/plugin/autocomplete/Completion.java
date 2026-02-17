@@ -22,9 +22,10 @@ public record Completion(String text, Kind kind) {
     public enum Kind {
         KEYWORD,
         FUNCTION,
+        PIPE,
         PLACEHOLDER,
+        METADATA,
         NAME,
         FIELD,
-        PIPE
     }
 }
