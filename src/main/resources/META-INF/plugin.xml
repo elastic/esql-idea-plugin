@@ -56,5 +56,10 @@
 
     <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>
 
+    <toolWindow id="ES|QL Results"
+                anchor="bottom"
+                factoryClass="co.elastic.plugin.execution.EsqlResultsToolWindowFactory"
+                icon="/META-INF/elasticsearch.svg"/>
+
   </extensions>
 </idea-plugin>
