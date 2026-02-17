@@ -20,8 +20,8 @@ package co.elastic.plugin.autocomplete;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
-import co.elastic.grammar.completion.CandidatesCollection;
 import co.elastic.grammar.completion.CodeCompletionCore;
+import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
@@ -147,7 +147,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             }
         }
 
-        Set<Integer> tokenCompletions = completionCandidates(parserInfo).getTokens().keySet();
+        Set<Integer> tokenCompletions = completionCandidates(parserInfo).tokens.keySet();
 
         for (Integer tokenType : tokenCompletions) {
             switch (tokenType) {
@@ -240,9 +240,9 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         var parser = parserInfo.parser();
         var tokens = parserInfo.tokens();
 
-        var codeCompletionCode = CodeCompletionCore.Companion.fromParser(parser);
+        var codeCompletionCode = new CodeCompletionCore(parser);
         var caretIndex = tokens.size() - 1;
-        return codeCompletionCode.collectCandidates(parser.getTokenStream(), caretIndex, null);
+        return codeCompletionCode.collectCandidates(caretIndex, null);
     }
 
     static String findQueriedIndex(List<Token> tokens) {
