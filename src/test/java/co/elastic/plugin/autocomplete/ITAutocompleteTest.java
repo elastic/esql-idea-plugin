@@ -129,7 +129,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(5, elements.length);
+        Assert.assertEquals(4, elements.length);
         LookupElement pipe = Arrays.stream(elements)
             .filter(le -> le
                 .getLookupString()
@@ -276,7 +276,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(5, elements.length);
+        Assert.assertEquals(4, elements.length);
         LookupElement pipe = Arrays.stream(elements)
             .filter(le -> le
                 .getLookupString()
