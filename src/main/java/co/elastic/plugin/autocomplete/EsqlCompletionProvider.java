@@ -19,9 +19,6 @@
 package co.elastic.plugin.autocomplete;
 
 import co.elastic.grammar.EsqlBaseLexer;
-import co.elastic.grammar.EsqlBaseParser;
-import co.elastic.grammar.completion.CodeCompletionCore;
-import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
@@ -32,10 +29,7 @@ import com.intellij.lang.Language;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ProcessingContext;
-import org.antlr.v4.runtime.Token;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.*;
 
 import static co.elastic.plugin.CommonUtils.*;
 
@@ -43,8 +37,6 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
     private final EsqlPluginQueryManager queryManager =
         ApplicationManager.getApplication().getService(EsqlPluginQueryManager.class);
-
-    private static Parser.ParserInfo parserInfo;
 
     @Override
     protected void addCompletions(@NotNull CompletionParameters parameters,
@@ -69,7 +61,8 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             return;
         }
 
-        var completions = computeCompletions(text, queryManager);
+        var parserInfo = Parser.parse(text);
+        var completions = Completion.computeCompletions(parserInfo, queryManager);
         var lastToken = parserInfo.tokens().getLast();
         for (Completion c : completions) {
             int priority = switch (c.kind()) {
@@ -244,4 +237,3 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         return "";
     }
 }
-

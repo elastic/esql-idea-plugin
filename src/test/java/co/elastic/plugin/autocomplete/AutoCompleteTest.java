@@ -53,7 +53,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testStartedQuery() {
-        var completions = EsqlCompletionProvider.computeCompletions("FR", null);
+        var completions = Completion.computeCompletions("FR", null);
         Assert.assertTrue(completions.contains(new Completion("FROM", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("ROW", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("SHOW", Completion.Kind.KEYWORD)));
@@ -63,7 +63,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testEmptyQuery() {
-        var completions = EsqlCompletionProvider.computeCompletions("", null);
+        var completions = Completion.computeCompletions("", null);
         Assert.assertTrue(completions.contains(new Completion("FROM", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("ROW", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("SHOW", Completion.Kind.KEYWORD)));
@@ -73,13 +73,13 @@ public class AutoCompleteTest {
 
     @Test
     public void testLowerCaseQuery() {
-        var completions = EsqlCompletionProvider.computeCompletions("from index | EV", null);
+        var completions = Completion.computeCompletions("from index | EV", null);
         Assert.assertTrue(completions.contains(new Completion("EVAL", Completion.Kind.KEYWORD)));
     }
 
     @Test
     public void testIndexCompletion() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM ", null);
+        var completions = Completion.computeCompletions("FROM ", null);
 
         Assert.assertEquals(1, completions.size());
         Assert.assertTrue(
@@ -89,7 +89,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testIndexCompletionMultiSpace() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM        ", null);
+        var completions = Completion.computeCompletions("FROM        ", null);
 
         Assert.assertTrue(
             completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER))
@@ -98,7 +98,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testAfterSourceExpectsPipeAndMore() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM index ", null);
+        var completions = Completion.computeCompletions("FROM index ", null);
 
         Assert.assertTrue(
             completions.contains(new Completion("|", Completion.Kind.PIPE))
@@ -106,11 +106,15 @@ public class AutoCompleteTest {
         Assert.assertTrue(
             completions.contains(new Completion("METADATA", Completion.Kind.KEYWORD))
         );
+
+        Assert.assertFalse(
+            completions.contains(new Completion("_source", Completion.Kind.METADATA))
+        );
     }
 
     @Test
     public void testAfterPipeExpectsCommands() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM index | ", null);
+        var completions = Completion.computeCompletions("FROM index | ", null);
         Assert.assertTrue(completions.contains(new Completion("WHERE", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("EVAL", Completion.Kind.KEYWORD)));
         Assert.assertTrue(completions.contains(new Completion("SORT", Completion.Kind.KEYWORD)));
@@ -122,7 +126,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testWhereExpectsVarAndFunctions() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM index | WHERE ", null);
+        var completions = Completion.computeCompletions("FROM index | WHERE ", null);
 
         Assert.assertTrue(
             completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER))
@@ -140,7 +144,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testMetadataOptions() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM index METADATA ", null);
+        var completions = Completion.computeCompletions("FROM index METADATA ", null);
 
         Set<String> texts = completions.stream().map(Completion::text).collect(Collectors.toSet());
         for (String opt : METADATA_OPTIONS) {
@@ -150,14 +154,14 @@ public class AutoCompleteTest {
 
     @Test
     public void testFromCompletesWithIndices() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM ", STUB_QUERY_MANAGER);
+        var completions = Completion.computeCompletions("FROM ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
         Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
     }
 
     @Test
     public void testWhereCompletesWithFields() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | WHERE ", STUB_QUERY_MANAGER);
+        var completions = Completion.computeCompletions("FROM my-index | WHERE ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
@@ -165,7 +169,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testSortCompletesWithFields() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | SORT ", STUB_QUERY_MANAGER);
+        var completions = Completion.computeCompletions("FROM my-index | SORT ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
@@ -173,7 +177,7 @@ public class AutoCompleteTest {
 
     @Test
     public void testEvalCompletesWithFields() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM my-index | EVAL ", STUB_QUERY_MANAGER);
+        var completions = Completion.computeCompletions("FROM my-index | EVAL ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
         Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
@@ -181,14 +185,14 @@ public class AutoCompleteTest {
 
     @Test
     public void testFieldsNotReturnedForUnknownIndex() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM unknown | WHERE ", STUB_QUERY_MANAGER);
+        var completions = Completion.computeCompletions("FROM unknown | WHERE ", STUB_QUERY_MANAGER);
         Assert.assertFalse(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
         Assert.assertFalse(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
     }
 
     @Test
     public void testNoSchemaCompletionsWithNullQueryManager() {
-        var completions = EsqlCompletionProvider.computeCompletions("FROM ", null);
+        var completions = Completion.computeCompletions("FROM ", null);
         Assert.assertFalse(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
         Assert.assertFalse(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
     }

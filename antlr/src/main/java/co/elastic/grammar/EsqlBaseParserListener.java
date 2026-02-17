@@ -242,6 +242,16 @@ public interface EsqlBaseParserListener extends ParseTreeListener {
    */
   void exitMetadata(EsqlBaseParser.MetadataContext ctx);
   /**
+   * Enter a parse tree produced by {@link EsqlBaseParser#metadataSource}.
+   * @param ctx the parse tree
+   */
+  void enterMetadataSource(EsqlBaseParser.MetadataSourceContext ctx);
+  /**
+   * Exit a parse tree produced by {@link EsqlBaseParser#metadataSource}.
+   * @param ctx the parse tree
+   */
+  void exitMetadataSource(EsqlBaseParser.MetadataSourceContext ctx);
+  /**
    * Enter a parse tree produced by {@link EsqlBaseParser#evalCommand}.
    * @param ctx the parse tree
    */
