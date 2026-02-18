@@ -18,11 +18,20 @@
  */
 package co.elastic.plugin.connection;
 
-import co.elastic.plugin.settings.EsqlConnection;
-
 import java.util.List;
 
-public interface EsqlPluginQueryManager {
-    List<String> getIndices();
-    List<String> getFields(String indexName);
+public record EsqlQueryResult(
+    List<Column> columns,
+    List<List<Object>> values,
+    String error
+) {
+    public record Column(String name, String type) {}
+
+    public static EsqlQueryResult error(String errorMessage) {
+        return new EsqlQueryResult(List.of(), List.of(), errorMessage);
+    }
+
+    public boolean isError() {
+        return error != null && !error.isEmpty();
+    }
 }

@@ -23,6 +23,7 @@ import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.grammar.completion.CandidatesCollection;
 import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
+import co.elastic.plugin.connection.EsqlPluginQueryManagerImpl;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
@@ -41,8 +42,8 @@ import static co.elastic.plugin.CommonUtils.*;
 
 public class EsqlCompletionProvider extends CompletionProvider<CompletionParameters> {
 
-    private final EsqlPluginQueryManager queryManager =
-        ApplicationManager.getApplication().getService(EsqlPluginQueryManager.class);
+    private final EsqlPluginQueryManagerImpl queryManager =
+        ApplicationManager.getApplication().getService(EsqlPluginQueryManagerImpl.class);
 
     private enum ServerOperation {
         indices,

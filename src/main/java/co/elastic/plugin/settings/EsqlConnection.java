@@ -16,13 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package co.elastic.plugin.connection;
+package co.elastic.plugin.settings;
 
-import co.elastic.plugin.settings.EsqlConnection;
+import com.intellij.util.xmlb.annotations.Tag;
 
-import java.util.List;
+@Tag("connection")
+public class EsqlConnection {
+    public String name = "";
+    public String serverUrl = "";
+    public String apiKey = "";
+    public int refreshInterval = 60;
 
-public interface EsqlPluginQueryManager {
-    List<String> getIndices();
-    List<String> getFields(String indexName);
+    public EsqlConnection() {}
+
+    public EsqlConnection(String name, String serverUrl, String apiKey, int refreshInterval) {
+        this.name = name;
+        this.serverUrl = serverUrl;
+        this.apiKey = apiKey;
+        this.refreshInterval = refreshInterval;
+    }
+
+    public EsqlConnection copy() {
+        return new EsqlConnection(name, serverUrl, apiKey, refreshInterval);
+    }
 }

@@ -44,7 +44,7 @@
   <extensions defaultExtensionNs="com.intellij">
     <postStartupActivity implementation="co.elastic.plugin.ElasticPluginStartup"/>
     <applicationService serviceImplementation="co.elastic.plugin.settings.EsqlPluginSettings"/>
-    <applicationService serviceInterface="co.elastic.plugin.connection.EsqlPluginQueryManager" serviceImplementation="co.elastic.plugin.connection.EsqlPluginQueryManagerImpl"/>
+    <applicationService serviceImplementation="co.elastic.plugin.connection.EsqlPluginQueryManagerImpl"/>
     <projectConfigurable groupId="language" instance="co.elastic.plugin.settings.EsqlPluginConfigurable"/>
     <completion.contributor
       implementationClass="co.elastic.plugin.autocomplete.EsqlCompletionContributor"
@@ -55,6 +55,11 @@
     <annotator language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
 
     <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>
+
+    <toolWindow id="Elasticsearch"
+                anchor="bottom"
+                factoryClass="co.elastic.plugin.execution.EsqlResultsToolWindowFactory"
+                icon="/META-INF/elasticsearch.svg"/>
 
   </extensions>
 </idea-plugin>

@@ -30,12 +30,12 @@ public final class EsqlIcon extends GutterIconRenderer {
 
     @Override
     public boolean equals(Object o) {
-        return ESQL_ICON.equals(o);
+        return o instanceof EsqlIcon;
     }
 
     @Override
     public int hashCode() {
-        return ESQL_ICON.hashCode();
+        return EsqlIcon.class.hashCode();
     }
 
     @Override

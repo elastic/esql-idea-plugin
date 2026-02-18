@@ -18,8 +18,6 @@
  */
 package co.elastic.plugin;
 
-import co.elastic.plugin.connection.EsqlPluginQueryManager;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
 import kotlin.Unit;
@@ -29,13 +27,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class ElasticPluginStartup implements ProjectActivity {
 
-    EsqlPluginQueryManager queryManager =
-        ApplicationManager.getApplication().getService(EsqlPluginQueryManager.class);
-
     @Override
     public @Nullable Object execute(@NotNull Project project,
                                     @NotNull Continuation<? super Unit> continuation) {
-        queryManager.startQueryThreadPool();
         return null;
     }
 }

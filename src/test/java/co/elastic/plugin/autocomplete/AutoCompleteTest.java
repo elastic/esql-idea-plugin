@@ -45,10 +45,6 @@ public class AutoCompleteTest {
             }
             return List.of();
         }
-
-        @Override
-        public void startQueryThreadPool() {
-        }
     };
 
     @Test
