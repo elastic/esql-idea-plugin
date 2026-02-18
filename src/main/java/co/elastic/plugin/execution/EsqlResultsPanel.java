@@ -66,6 +66,7 @@ public class EsqlResultsPanel extends JPanel {
 
         connectionDropdown = new ComboBox<>();
         connectionDropdown.setMinimumAndPreferredWidth(200);
+        connectionDropdown.setRenderer(new ConnectionListCellRenderer());
         connectionDropdown.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED && !updatingDropdown) {
                 String selected = (String) connectionDropdown.getSelectedItem();
@@ -123,7 +124,7 @@ public class EsqlResultsPanel extends JPanel {
         if (queryManager.isActiveConnectionConnected()) {
             connectButton.setIcon(AllIcons.Actions.OfflineMode);
             connectButton.setToolTipText("Disconnect");
-            statusLabel.setText("Connected to: " + settings.activeConnectionName);
+            statusLabel.setText("Connected");
         } else {
             connectButton.setIcon(AllIcons.Debugger.ThreadStates.Socket);
             connectButton.setToolTipText("Connect");
@@ -149,6 +150,7 @@ public class EsqlResultsPanel extends JPanel {
             queryManager.connect();
         }
         updateConnectButton();
+        connectionDropdown.repaint();
     }
 
     private void refreshDropdown() {
@@ -161,6 +163,7 @@ public class EsqlResultsPanel extends JPanel {
             connectionDropdown.setSelectedItem(settings.activeConnectionName);
         }
         updatingDropdown = false;
+        connectionDropdown.repaint();
     }
 
     private void addConnection() {
@@ -368,5 +371,23 @@ public class EsqlResultsPanel extends JPanel {
 
     public void showError(String errorMessage) {
         statusLabel.setText("Query failed");
+    }
+
+    private class ConnectionListCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
+                                                       boolean isSelected, boolean cellHasFocus) {
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            
+            if (value instanceof String connectionName) {
+                if (queryManager.isConnected(connectionName)) {
+                    label.setIcon(AllIcons.General.InspectionsOK);
+                } else {
+                    label.setIcon(null);
+                }
+            }
+            
+            return label;
+        }
     }
 }
