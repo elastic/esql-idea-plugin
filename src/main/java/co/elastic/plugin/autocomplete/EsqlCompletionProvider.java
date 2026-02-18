@@ -19,9 +19,6 @@
 package co.elastic.plugin.autocomplete;
 
 import co.elastic.grammar.EsqlBaseLexer;
-import co.elastic.grammar.EsqlBaseParser;
-import co.elastic.grammar.completion.CandidatesCollection;
-import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import co.elastic.plugin.connection.EsqlPluginQueryManagerImpl;
 import com.intellij.codeInsight.completion.CompletionParameters;
@@ -33,10 +30,7 @@ import com.intellij.lang.Language;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ProcessingContext;
-import org.antlr.v4.runtime.Token;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.*;
 
 import static co.elastic.plugin.CommonUtils.*;
 
@@ -44,21 +38,6 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
     private final EsqlPluginQueryManagerImpl queryManager =
         ApplicationManager.getApplication().getService(EsqlPluginQueryManagerImpl.class);
-
-    private enum ServerOperation {
-        indices,
-        fields
-    }
-
-    private static Parser.ParserInfo parserInfo;
-
-    private static final Map<Integer, ServerOperation> serverOperationsMap =
-        Map.ofEntries(
-            Map.entry(EsqlBaseParser.FROM, ServerOperation.indices),
-            Map.entry(EsqlBaseParser.SORT, ServerOperation.fields),
-            Map.entry(EsqlBaseParser.EVAL, ServerOperation.fields),
-            Map.entry(EsqlBaseParser.WHERE, ServerOperation.fields)
-        );
 
     @Override
     protected void addCompletions(@NotNull CompletionParameters parameters,
@@ -83,7 +62,8 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             return;
         }
 
-        var completions = computeCompletions(text, queryManager);
+        var parserInfo = Parser.parse(text);
+        var completions = Completion.computeCompletions(parserInfo, queryManager);
         var lastToken = parserInfo.tokens().getLast();
         for (Completion c : completions) {
             int priority = switch (c.kind()) {
@@ -116,137 +96,4 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             }
         }
     }
-
-    static Set<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
-        parserInfo = Parser.parse(text);
-        Set<Completion> completions = new HashSet<>();
-        completions.addAll(computeTokenCompletions(parserInfo));
-        completions.addAll(computeSchemaDependentCompletions(parserInfo, queryManager));
-        return completions;
-    }
-
-    private static Set<Completion> computeTokenCompletions(Parser.ParserInfo parserInfo) {
-        Set<Completion> completions = new HashSet<>();
-
-        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
-
-        // metadata special case
-        if (lastNonSpaceToken != null && lastNonSpaceToken.getType() == EsqlBaseParser.METADATA) {
-            for (String opt : METADATA_OPTIONS) {
-                completions.add(new Completion(opt, Completion.Kind.METADATA));
-            }
-        }
-
-        Set<Integer> tokenCompletions = completionCandidates(parserInfo).getTokens().keySet();
-
-        for (Integer tokenType : tokenCompletions) {
-            switch (tokenType) {
-                // replacing QUOTED_STRING and UNQUOTED_SOURCE with just "{string}"
-                case EsqlBaseParser.QUOTED_STRING:
-                case EsqlBaseParser.UNQUOTED_SOURCE:
-                    completions.add(new Completion("{string}", Completion.Kind.PLACEHOLDER));
-                    break;
-                // replacing UNQUOTED_IDENTIFIER and QUOTED_IDENTIFIER with just {var}
-                case EsqlBaseParser.UNQUOTED_IDENTIFIER:
-                case EsqlBaseParser.QUOTED_IDENTIFIER:
-                    completions.add(new Completion("{var}", Completion.Kind.PLACEHOLDER));
-                    break;
-                // replacing NAMED_OR_POSITIONAL_PARAM, NAMED_OR_POSITIONAL_DOUBLE_PARAMS and ID_PATTERN
-                // with just {param}
-                case EsqlBaseParser.NAMED_OR_POSITIONAL_PARAM:
-                case EsqlBaseParser.NAMED_OR_POSITIONAL_DOUBLE_PARAMS:
-                case EsqlBaseParser.ID_PATTERN:
-                    completions.add(new Completion("{param}", Completion.Kind.PLACEHOLDER));
-                    break;
-                // replacing DECIMAL_LITERAL with just {num}
-                case EsqlBaseParser.DECIMAL_LITERAL:
-                    completions.add(new Completion("{num}", Completion.Kind.PLACEHOLDER));
-                    break;
-                // LP means functions, adding brackets to token
-                case EsqlBaseParser.LP:
-                    for (String function : FUNCTIONS) {
-                        completions.add(new Completion(function + "()", Completion.Kind.FUNCTION));
-                    }
-                    break;
-                case EsqlBaseParser.PIPE:
-                    completions.add(new Completion("|", Completion.Kind.PIPE));
-                    break;
-                case EsqlBaseParser.PARAM:
-                case EsqlBaseParser.DOUBLE_PARAMS:
-                case EsqlBaseParser.EOF:
-                    break;
-                default:
-                    String display = EsqlBaseParser.VOCABULARY.getDisplayName(tokenType);
-                    if (display != null && !display.isEmpty() && !display.startsWith("DEV_")) {
-                        String tokenText = display.replaceAll("'", "").toUpperCase(Locale.ROOT);
-                        completions.add(new Completion(tokenText, Completion.Kind.KEYWORD));
-                    }
-            }
-        }
-
-        return completions;
-    }
-
-    private static Set<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
-                                                                      EsqlPluginQueryManager queryManager) {
-        Set<Completion> completions = new HashSet<>();
-        if (queryManager == null) {
-            return completions;
-        }
-
-        Token lastNonSpaceToken = parserInfo.lastNonSpacetoken();
-        if (lastNonSpaceToken == null) {
-            return completions;
-        }
-
-        ServerOperation serverOp = serverOperationsMap.get(lastNonSpaceToken.getType());
-        if (serverOp == null) {
-            return completions;
-        }
-
-        switch (serverOp) {
-            case indices: {
-                for (String index : queryManager.getIndices()) {
-                    completions.add(new Completion(index, Completion.Kind.NAME));
-                }
-                break;
-            }
-            case fields: {
-                String index = findQueriedIndex(parserInfo.tokens());
-                if (!index.isEmpty()) {
-                    for (String field : queryManager.getFields(index)) {
-                        completions.add(new Completion(field, Completion.Kind.FIELD));
-                    }
-                }
-                break;
-            }
-        }
-
-        return completions;
-    }
-
-
-    private static CandidatesCollection completionCandidates(Parser.ParserInfo parserInfo) {
-        var parser = parserInfo.parser();
-        var tokens = parserInfo.tokens();
-
-        var codeCompletionCode = CodeCompletionCore.Companion.fromParser(parser);
-        var caretIndex = tokens.size() - 1;
-        return codeCompletionCode.collectCandidates(parser.getTokenStream(), caretIndex, null);
-    }
-
-    static String findQueriedIndex(List<Token> tokens) {
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            if (tokens.get(i).getType() == EsqlBaseParser.FROM) {
-                for (int j = i + 1; j < tokens.size(); j++) {
-                    Token next = tokens.get(j);
-                    if (next.getType() != Token.EOF && next.getChannel() == Token.DEFAULT_CHANNEL) {
-                        return next.getText().trim();
-                    }
-                }
-            }
-        }
-        return "";
-    }
 }
-

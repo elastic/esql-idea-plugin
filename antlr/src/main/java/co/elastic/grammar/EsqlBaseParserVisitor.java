@@ -154,6 +154,12 @@ public interface EsqlBaseParserVisitor<T> extends ParseTreeVisitor<T> {
    */
   T visitMetadata(EsqlBaseParser.MetadataContext ctx);
   /**
+   * Visit a parse tree produced by {@link EsqlBaseParser#metadataSource}.
+   * @param ctx the parse tree
+   * @return the visitor result
+   */
+  T visitMetadataSource(EsqlBaseParser.MetadataSourceContext ctx);
+  /**
    * Visit a parse tree produced by {@link EsqlBaseParser#evalCommand}.
    * @param ctx the parse tree
    * @return the visitor result

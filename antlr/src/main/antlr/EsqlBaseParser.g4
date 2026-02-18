@@ -138,7 +138,11 @@ indexString
     ;
 
 metadata
-    : METADATA UNQUOTED_SOURCE (COMMA UNQUOTED_SOURCE)*
+    : METADATA metadataSource (COMMA metadataSource)*
+    ;
+
+metadataSource
+    : UNQUOTED_SOURCE
     ;
 
 evalCommand
