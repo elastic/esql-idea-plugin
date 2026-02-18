@@ -153,10 +153,33 @@ public class AutoCompleteTest {
     }
 
     @Test
-    public void testFromCompletesWithIndices() {
+    public void testFromCompletesFromWithIndices() {
         var completions = Completion.computeCompletions("FROM ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
         Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
+    }
+
+    @Test
+    public void testFromCompletesTsWithIndices() {
+        var completions = Completion.computeCompletions("TS ", STUB_QUERY_MANAGER);
+        Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
+        Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
+    }
+
+    @Test
+    public void testFromCompletesFieldsInStatsBy() {
+        var completions = Completion.computeCompletions("FROM my-index | STATS COUNT(*) BY ", STUB_QUERY_MANAGER);
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
+    }
+
+    @Test
+    public void testFromCompletesFieldsInMvExpand() {
+        var completions = Completion.computeCompletions("FROM my-index | MV_EXPAND ", STUB_QUERY_MANAGER);
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
     }
 
     @Test

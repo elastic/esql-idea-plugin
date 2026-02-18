@@ -134,7 +134,7 @@ public record Completion(String text, Kind kind) {
             }
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_qualifiedName)) {
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName)) {
             String index = findQueriedIndex(parserInfo.tokens());
             if (!index.isEmpty()) {
                 for (String field : queryManager.getFields(index)) {
@@ -152,7 +152,7 @@ public record Completion(String text, Kind kind) {
 
         var codeCompletionCode = new CodeCompletionCore(parser);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_indexPattern);
-        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_qualifiedName);
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_fieldName);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadataSource);
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
