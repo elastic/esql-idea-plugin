@@ -41,9 +41,11 @@ import java.util.Map;
 
 public class EsqlConnectionDialog extends DialogWrapper {
 
-    private final JTextField nameField = new JTextField();
-    private final JTextField urlField = new JTextField();
-    private final JPasswordField apiKeyField = new JPasswordField();
+    private static final int FIELD_COLUMNS = 40;
+
+    private final JTextField nameField = new JTextField(FIELD_COLUMNS);
+    private final JTextField urlField = new JTextField(FIELD_COLUMNS);
+    private final JPasswordField apiKeyField = new JPasswordField(FIELD_COLUMNS);
     private final ComboBox<String> refreshRateField;
     private final JLabel testResultLabel = new JLabel(" ");
     private final Map<String, Integer> refreshRateMap = new LinkedHashMap<>();
@@ -88,13 +90,16 @@ public class EsqlConnectionDialog extends DialogWrapper {
         testPanel.add(testButton);
         testPanel.add(testResultLabel);
 
-        return FormBuilder.createFormBuilder()
+        JPanel panel = FormBuilder.createFormBuilder()
             .addLabeledComponent("Name:", nameField)
             .addLabeledComponent("URL:", urlField)
             .addLabeledComponent("API key:", apiKeyField)
             .addLabeledComponent("Refresh rate:", refreshRateField)
             .addComponent(testPanel)
             .getPanel();
+        
+        panel.setBorder(JBUI.Borders.empty(10));
+        return panel;
     }
 
     @Override
