@@ -58,7 +58,7 @@ public record Completion(String text, Kind kind) {
             completions.add(new Completion("{string}", Kind.PLACEHOLDER));
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_qualifiedName)) {
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName) || candidates.rules.containsKey(EsqlBaseParser.RULE_fieldNamePattern)) {
             completions.add(new Completion("{var}", Kind.PLACEHOLDER));
         }
 
@@ -133,7 +133,7 @@ public record Completion(String text, Kind kind) {
             }
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName)) {
+        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName) || candidates.rules.containsKey(EsqlBaseParser.RULE_fieldNamePattern) ) {
             var queriedIndexes = parserInfo.queriedIndexes();
             if (!queriedIndexes.isEmpty()) {
                 String index = queriedIndexes.getLast();
@@ -153,6 +153,7 @@ public record Completion(String text, Kind kind) {
         var codeCompletionCode = new CodeCompletionCore(parser);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_indexPattern);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_fieldName);
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_fieldNamePattern);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadataSource);
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
