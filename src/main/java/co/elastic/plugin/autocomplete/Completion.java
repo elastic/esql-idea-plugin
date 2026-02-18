@@ -22,7 +22,6 @@ import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
-import org.antlr.v4.runtime.Token;
 
 import java.util.*;
 
@@ -135,8 +134,9 @@ public record Completion(String text, Kind kind) {
         }
 
         if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName)) {
-            String index = findQueriedIndex(parserInfo.tokens());
-            if (!index.isEmpty()) {
+            var queriedIndexes = parserInfo.queriedIndexes();
+            if (!queriedIndexes.isEmpty()) {
+                String index = queriedIndexes.getLast();
                 for (String field : queryManager.getFields(index)) {
                     completions.add(new Completion(field, Kind.FIELD));
                 }
@@ -156,19 +156,5 @@ public record Completion(String text, Kind kind) {
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadataSource);
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
-    }
-
-    static String findQueriedIndex(List<Token> tokens) {
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            if (tokens.get(i).getType() == EsqlBaseParser.FROM) {
-                for (int j = i + 1; j < tokens.size(); j++) {
-                    Token next = tokens.get(j);
-                    if (next.getType() != Token.EOF && next.getChannel() == Token.DEFAULT_CHANNEL) {
-                        return next.getText().trim();
-                    }
-                }
-            }
-        }
-        return "";
     }
 }
