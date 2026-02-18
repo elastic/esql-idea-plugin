@@ -75,7 +75,7 @@ public class EsqlResultsPanel extends JPanel {
         });
         toolbarPanel.add(connectionDropdown);
 
-        connectButton = createToolbarButton(AllIcons.Actions.Execute, "Connect");
+        connectButton = createToolbarButton(AllIcons.Actions.OfflineMode, "Connect");
         connectButton.addActionListener(e -> toggleConnection());
         toolbarPanel.add(connectButton);
 
@@ -87,7 +87,7 @@ public class EsqlResultsPanel extends JPanel {
         editButton.addActionListener(e -> editConnection());
         toolbarPanel.add(editButton);
 
-        JButton removeButton = createToolbarButton(AllIcons.General.Remove, "Remove connection");
+        JButton removeButton = createToolbarButton(AllIcons.General.Delete, "Remove connection");
         removeButton.addActionListener(e -> removeConnection());
         toolbarPanel.add(removeButton);
 
@@ -131,11 +131,11 @@ public class EsqlResultsPanel extends JPanel {
 
     private void updateConnectButton() {
         if (queryManager.isConnected()) {
-            connectButton.setIcon(AllIcons.Actions.Suspend);
+            connectButton.setIcon(AllIcons.General.GreenCheckmark);
             connectButton.setToolTipText("Disconnect");
             statusLabel.setText("Connected to: " + settings.activeConnectionName);
         } else {
-            connectButton.setIcon(AllIcons.Actions.Execute);
+            connectButton.setIcon(AllIcons.Actions.OfflineMode);
             connectButton.setToolTipText("Connect");
             if (settings.connections.isEmpty()) {
                 statusLabel.setText("No connections configured");
