@@ -58,14 +58,14 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
         });
     }
 
-    public static void showResults(@NotNull Project project, @NotNull EsqlQueryResult result, long elapsedMs) {
+    public static void showResults(@NotNull Project project, @NotNull String query, @NotNull EsqlQueryResult result, long elapsedMs) {
         ApplicationManager.getApplication().invokeLater(() -> {
             ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID);
             if (toolWindow != null) {
                 toolWindow.show();
                 EsqlResultsPanel panel = panels.get(project);
                 if (panel != null) {
-                    panel.updateResults(result, elapsedMs);
+                    panel.updateResults(query, result, elapsedMs);
                 }
             }
         });

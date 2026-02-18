@@ -29,6 +29,7 @@ import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.components.JBTabbedPane;
 import com.intellij.ui.table.JBTable;
 import com.intellij.util.ui.JBUI;
 
@@ -36,14 +37,14 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
 public class EsqlResultsPanel extends JPanel {
 
-    private final JBTable table;
     private final JBLabel statusLabel;
-    private final JPanel errorPanel;
-    private final JBLabel errorLabel;
+    private final JBTabbedPane tabbedPane;
     private final ComboBox<String> connectionDropdown;
     private final JButton connectButton;
 
@@ -77,7 +78,7 @@ public class EsqlResultsPanel extends JPanel {
         });
         toolbarPanel.add(connectionDropdown);
 
-        connectButton = createToolbarButton(AllIcons.Actions.OfflineMode, "Connect");
+        connectButton = createToolbarButton(AllIcons.Debugger.ThreadStates.Socket, "Connect");
         connectButton.addActionListener(e -> toggleConnection());
         toolbarPanel.add(connectButton);
 
@@ -101,21 +102,8 @@ public class EsqlResultsPanel extends JPanel {
 
         add(topPanel, BorderLayout.NORTH);
 
-        table = new JBTable();
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-        table.setFillsViewportHeight(true);
-        table.getTableHeader().setReorderingAllowed(true);
-
-        JBScrollPane scrollPane = new JBScrollPane(table);
-        add(scrollPane, BorderLayout.CENTER);
-
-        errorPanel = new JPanel(new BorderLayout());
-        errorPanel.setBorder(JBUI.Borders.empty(8));
-        errorLabel = new JBLabel();
-        errorLabel.setForeground(UIManager.getColor("Label.errorForeground"));
-        errorPanel.add(errorLabel, BorderLayout.CENTER);
-        errorPanel.setVisible(false);
-        add(errorPanel, BorderLayout.SOUTH);
+        tabbedPane = new JBTabbedPane();
+        add(tabbedPane, BorderLayout.CENTER);
 
         refreshDropdown();
         updateConnectButton();
@@ -133,11 +121,11 @@ public class EsqlResultsPanel extends JPanel {
 
     private void updateConnectButton() {
         if (queryManager.isActiveConnectionConnected()) {
-            connectButton.setIcon(AllIcons.General.GreenCheckmark);
+            connectButton.setIcon(AllIcons.Actions.OfflineMode);
             connectButton.setToolTipText("Disconnect");
             statusLabel.setText("Connected to: " + settings.activeConnectionName);
         } else {
-            connectButton.setIcon(AllIcons.Actions.OfflineMode);
+            connectButton.setIcon(AllIcons.Debugger.ThreadStates.Socket);
             connectButton.setToolTipText("Connect");
             if (settings.connections.isEmpty()) {
                 statusLabel.setText("No connections configured");
@@ -219,30 +207,91 @@ public class EsqlResultsPanel extends JPanel {
             if (queryManager.isConnected(active)) {
                 queryManager.disconnect(active);
             }
+            queryManager.clearCachedResults(active);
             settings.removeConnection(active);
             refreshDropdown();
+            restoreCachedResults();
             updateConnectButton();
         }
     }
 
     public void showLoading(String query) {
         statusLabel.setText("Executing query...");
-        errorPanel.setVisible(false);
-        table.setModel(new DefaultTableModel());
     }
 
-    public void updateResults(EsqlQueryResult result, long elapsedMs) {
-        queryManager.cacheResult(result, elapsedMs);
-        displayResult(result, elapsedMs);
+    public void updateResults(String query, EsqlQueryResult result, long elapsedMs) {
+        queryManager.addCachedResult(query, result, elapsedMs);
+        addResultTab(query, result, elapsedMs);
     }
 
-    private void displayResult(EsqlQueryResult result, long elapsedMs) {
-        if (result.isError()) {
-            showError(result.error());
-            return;
+    private void addResultTab(String query, EsqlQueryResult result, long elapsedMs) {
+        String tabTitle = truncateQuery(query);
+        JPanel tabContent = createResultPanel(result);
+        
+        tabbedPane.addTab(tabTitle, tabContent);
+        int tabIndex = tabbedPane.getTabCount() - 1;
+        tabbedPane.setToolTipTextAt(tabIndex, query);
+        tabbedPane.setTabComponentAt(tabIndex, createTabHeader(tabTitle));
+        tabbedPane.setSelectedIndex(tabIndex);
+        
+        updateStatusForResult(result, elapsedMs);
+    }
+
+    private JPanel createTabHeader(String title) {
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        header.setOpaque(false);
+        
+        JLabel titleLabel = new JLabel(title);
+        header.add(titleLabel);
+        
+        JButton closeButton = new JButton(AllIcons.Actions.Close);
+        closeButton.setPreferredSize(new Dimension(16, 16));
+        closeButton.setContentAreaFilled(false);
+        closeButton.setBorderPainted(false);
+        closeButton.setFocusPainted(false);
+        closeButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int index = tabbedPane.indexOfTabComponent(header);
+                if (index >= 0) {
+                    closeTab(index);
+                }
+            }
+        });
+        header.add(closeButton);
+        
+        return header;
+    }
+
+    private void closeTab(int tabIndex) {
+        if (tabIndex >= 0 && tabIndex < tabbedPane.getTabCount()) {
+            tabbedPane.removeTabAt(tabIndex);
+            queryManager.removeCachedResult(settings.activeConnectionName, tabIndex);
         }
+    }
 
-        errorPanel.setVisible(false);
+    private String truncateQuery(String query) {
+        String normalized = query.replaceAll("\\s+", " ").trim();
+        if (normalized.length() > 30) {
+            return normalized.substring(0, 27) + "...";
+        }
+        return normalized;
+    }
+
+    private JPanel createResultPanel(EsqlQueryResult result) {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        if (result.isError()) {
+            JPanel errorPanel = new JPanel(new BorderLayout());
+            errorPanel.setBorder(JBUI.Borders.empty(8));
+            JBLabel errorLabel = new JBLabel();
+            errorLabel.setForeground(UIManager.getColor("Label.errorForeground"));
+            errorLabel.setText("<html>" + result.error().replace("\n", "<br>") + "</html>");
+            errorPanel.add(errorLabel, BorderLayout.CENTER);
+            panel.add(errorPanel, BorderLayout.CENTER);
+
+            return panel;
+        }
 
         List<EsqlQueryResult.Column> columns = result.columns();
         List<List<Object>> values = result.values();
@@ -266,33 +315,58 @@ public class EsqlResultsPanel extends JPanel {
                 return false;
             }
         };
-        table.setModel(model);
+        
+        JBTable table = new JBTable(model);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        table.setFillsViewportHeight(true);
+        table.getTableHeader().setReorderingAllowed(true);
 
         for (int i = 0; i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(150);
         }
 
-        String timeStr = elapsedMs < 1000
-            ? elapsedMs + " ms"
-            : String.format("%.2f s", elapsedMs / 1000.0);
-        statusLabel.setText(values.size() + " rows returned in " + timeStr
-                            + "  |  " + columns.size() + " columns");
+        JBScrollPane scrollPane = new JBScrollPane(table);
+        panel.add(scrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void updateStatusForResult(EsqlQueryResult result, long elapsedMs) {
+        if (result.isError()) {
+            statusLabel.setText("Query failed");
+        } else {
+            List<List<Object>> values = result.values();
+            List<EsqlQueryResult.Column> columns = result.columns();
+            String timeStr = elapsedMs < 1000
+                ? elapsedMs + " ms"
+                : String.format("%.2f s", elapsedMs / 1000.0);
+            statusLabel.setText(values.size() + " rows returned in " + timeStr
+                                + "  |  " + columns.size() + " columns");
+        }
     }
 
     private void restoreCachedResults() {
-        EsqlPluginQueryManager.CachedResult cached = queryManager.getCachedResult();
-        if (cached != null) {
-            displayResult(cached.result(), cached.elapsedMs());
-        } else {
-            table.setModel(new DefaultTableModel());
-            errorPanel.setVisible(false);
+        tabbedPane.removeAll();
+        
+        List<EsqlPluginQueryManager.CachedResult> results = queryManager.getCachedResults();
+        for (int i = 0; i < results.size(); i++) {
+            EsqlPluginQueryManager.CachedResult cached = results.get(i);
+            String tabTitle = truncateQuery(cached.query());
+            JPanel tabContent = createResultPanel(cached.result());
+            
+            tabbedPane.addTab(tabTitle, tabContent);
+            tabbedPane.setToolTipTextAt(i, cached.query());
+            tabbedPane.setTabComponentAt(i, createTabHeader(tabTitle));
+        }
+        
+        if (!results.isEmpty()) {
+            tabbedPane.setSelectedIndex(results.size() - 1);
+            EsqlPluginQueryManager.CachedResult last = results.get(results.size() - 1);
+            updateStatusForResult(last.result(), last.elapsedMs());
         }
     }
 
     public void showError(String errorMessage) {
         statusLabel.setText("Query failed");
-        errorLabel.setText("<html>" + errorMessage.replace("\n", "<br>") + "</html>");
-        errorPanel.setVisible(true);
-        table.setModel(new DefaultTableModel());
     }
 }
