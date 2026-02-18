@@ -51,6 +51,14 @@ public class AutoCompleteTest {
         }
     };
 
+    private void assertCompletesFieldNames(String query) {
+        var completions = Completion.computeCompletions(query, STUB_QUERY_MANAGER);
+        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
+        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    }
+
     @Test
     public void testStartedQuery() {
         var completions = Completion.computeCompletions("FR", null);
@@ -169,49 +177,28 @@ public class AutoCompleteTest {
     }
 
     @Test
-    public void testFromCompletesFieldsInStatsBy() {
-        var completions = Completion.computeCompletions("FROM my-index | STATS COUNT(*) BY ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
-
+    public void testStatsByCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | STATS COUNT(*) BY ");
     }
 
     @Test
-    public void testFromCompletesFieldsInMvExpand() {
-        var completions = Completion.computeCompletions("FROM my-index | MV_EXPAND ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testMvExpandCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | MV_EXPAND ");
     }
 
     @Test
     public void testWhereCompletesWithFields() {
-        var completions = Completion.computeCompletions("FROM my-index | WHERE ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+        assertCompletesFieldNames("FROM my-index | WHERE ");
     }
 
     @Test
     public void testSortCompletesWithFields() {
-        var completions = Completion.computeCompletions("FROM my-index | SORT ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+        assertCompletesFieldNames("FROM my-index | SORT ");
     }
 
     @Test
     public void testEvalCompletesWithFields() {
-        var completions = Completion.computeCompletions("FROM my-index | EVAL ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+        assertCompletesFieldNames("FROM my-index | EVAL ");
     }
 
     @Test
@@ -251,16 +238,14 @@ public class AutoCompleteTest {
     }
 
     @Test
-    public void testLeftJoinCompletesWithIndices() {
-        var completions = Completion.computeCompletions("FROM my-index | LEFT JOIN ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
-        Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
+    public void testLookupJoinExpectsIndexPattern() {
+        var completions = Completion.computeCompletions("FROM index | LOOKUP JOIN ", null);
         Assert.assertTrue(completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER)));
     }
 
     @Test
-    public void testLookupExpectsIndexPattern() {
-        var completions = Completion.computeCompletions("FROM index | LOOKUP_JOIN ", STUB_QUERY_MANAGER);
+    public void testLookupJoinCompletesWithIndices() {
+        var completions = Completion.computeCompletions("FROM my-index | LOOKUP JOIN ", STUB_QUERY_MANAGER);
         Assert.assertTrue(completions.contains(new Completion("my-index", Completion.Kind.NAME)));
         Assert.assertTrue(completions.contains(new Completion("logs-2024", Completion.Kind.NAME)));
         Assert.assertTrue(completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER)));
@@ -275,85 +260,48 @@ public class AutoCompleteTest {
     }
 
     @Test
-    public void testKeepExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | KEEP ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testKeepCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | KEEP ");
     }
 
     @Test
-    public void testDropExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | DROP ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testDropCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | DROP ");
     }
 
     @Test
-    public void testRenameExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | RENAME ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testRenameCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | RENAME ");
     }
 
     @Test
-    public void testWhereAfterAndExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | WHERE x > 1 AND ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testWhereAfterAndCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | WHERE x > 1 AND ");
     }
 
     @Test
-    public void testWhereAfterOrExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | WHERE x > 1 OR ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testWhereAfterOrCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | WHERE x > 1 OR ");
     }
 
     @Test
-    public void testSortCommaExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | SORT field1, ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testSortCommaCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | SORT field1, ");
     }
 
     @Test
-    public void testEvalAssignmentRhsExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | EVAL x = ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testEvalAssignmentRhsCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | EVAL x = ");
     }
 
     @Test
-    public void testDissectExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | DISSECT ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
+    public void testDissectCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | DISSECT ");
     }
 
     @Test
-    public void testGrokExpectsFieldName() {
-        var completions = Completion.computeCompletions("FROM my-index | GROK ", STUB_QUERY_MANAGER);
-        Assert.assertTrue(completions.contains(new Completion("field1", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("field2", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("@timestamp", Completion.Kind.FIELD)));
-        Assert.assertTrue(completions.contains(new Completion("{var}", Completion.Kind.PLACEHOLDER)));
-
+    public void testGrokCompletesWithFields() {
+        assertCompletesFieldNames("FROM my-index | GROK ");
     }
 
     // --- metadataSource rule: additional contexts ---
