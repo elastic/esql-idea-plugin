@@ -20,8 +20,55 @@ package co.elastic.plugin.connection;
 
 import java.util.List;
 
-public interface EsqlPluginQueryManager {
-    List<String> getIndices();
-    List<String> getFields(String indexName);
-    void startQueryThreadPool();
+public final class EsqlPluginQueryManager {
+
+    ScheduledExecutorService scheduler = AppExecutorUtil.getAppScheduledExecutorService();
+    ScheduledFuture currentTask;
+
+    EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
+
+    private ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
+
+    public List<String> getIndices() {
+        return new ArrayList<>(indicesAndFields.keySet());
+    }
+
+    public List<String> getFields(String indexName) {
+        List<String> result = indicesAndFields.get(indexName);
+        if (result == null) {
+            result = new ArrayList<>();
+        }
+        return result;
+    }
+
+    public void startQueryThreadPool() {
+        if (!settings.getServerUrl().isEmpty() && !settings.getApiKey().isEmpty()) {
+            if (currentTask != null) {
+                currentTask.cancel(true);
+            }
+            currentTask = scheduler.scheduleWithFixedDelay(() -> {
+                try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
+                    .host(settings.getServerUrl())
+                    .apiKey(settings.getApiKey())
+                )) {
+                    List<String> indices = client.indices().get(g -> g.index("*"))
+                        .indices().keySet().stream()
+                        // removing internal indices
+                        .filter(x -> !x.startsWith(".internal") && !x.startsWith(".ds"))
+                        .toList();
+
+                    for (String index : indices) {
+                        TypeMapping mappings = client.indices().get(g -> g.index(index))
+                            .indices().get(index).mappings();
+                        if (mappings != null) {
+                            List<String> fields = mappings.properties().keySet().stream().toList();
+                            indicesAndFields.put(index, fields);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Elasticsearch query failed: " + e.getMessage(), e);
+                }
+            }, 0, settings.getRefreshInterval(), TimeUnit.SECONDS);
+        }
+    }
 }
