@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.ToolWindowFactory {
 
-    public static final String TOOL_WINDOW_ID = "ES|QL Results";
+    public static final String TOOL_WINDOW_ID = "Elasticsearch";
 
     private static final Map<Project, EsqlResultsPanel> panels = new ConcurrentHashMap<>();
 

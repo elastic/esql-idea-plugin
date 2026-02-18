@@ -55,7 +55,7 @@
 
     <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>
 
-    <toolWindow id="ES|QL Results"
+    <toolWindow id="Elasticsearch"
                 anchor="bottom"
                 factoryClass="co.elastic.plugin.execution.EsqlResultsToolWindowFactory"
                 icon="/META-INF/elasticsearch.svg"/>

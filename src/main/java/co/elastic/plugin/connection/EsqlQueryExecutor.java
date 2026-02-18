@@ -40,6 +40,12 @@ public class EsqlQueryExecutor {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static EsqlQueryResult execute(String query) {
+        EsqlPluginQueryManager queryManager = ApplicationManager.getApplication()
+            .getService(EsqlPluginQueryManager.class);
+        if (!queryManager.isConnected()) {
+            return EsqlQueryResult.error("Not connected. Click the connect button in the Elasticsearch panel.");
+        }
+
         EsqlPluginSettings settings = ApplicationManager.getApplication()
             .getService(EsqlPluginSettings.class);
 
@@ -47,13 +53,13 @@ public class EsqlQueryExecutor {
         String apiKey = settings.getApiKey();
 
         if (serverUrl == null || serverUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            return EsqlQueryResult.error("No connection configured. Add one in the ES|QL Results tool window.");
+            return EsqlQueryResult.error("No connection configured. Add one in the the Elasticsearch panel.");
         }
 
         try {
             String url = serverUrl.endsWith("/")
-                ? serverUrl + "_query"
-                : serverUrl + "/_query";
+                ? serverUrl + "_query?format=json"
+                : serverUrl + "/_query?format=json";
 
             String requestBody = OBJECT_MAPPER.writeValueAsString(
                 OBJECT_MAPPER.createObjectNode().put("query", query)
@@ -63,6 +69,7 @@ public class EsqlQueryExecutor {
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
                 .header("Authorization", "ApiKey " + apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();

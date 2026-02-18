@@ -39,7 +39,13 @@ public final class EsqlPluginQueryManager {
 
     EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
 
+    private volatile boolean connected = false;
+
     private ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
+
+    public boolean isConnected() {
+        return connected;
+    }
 
     public List<String> getIndices() {
         return new ArrayList<>(indicesAndFields.keySet());
@@ -53,34 +59,47 @@ public final class EsqlPluginQueryManager {
         return result;
     }
 
-    public void startQueryThreadPool() {
+    public void connect() {
         if (!settings.getServerUrl().isEmpty() && !settings.getApiKey().isEmpty()) {
-            if (currentTask != null) {
-                currentTask.cancel(true);
-            }
-            currentTask = scheduler.scheduleWithFixedDelay(() -> {
-                try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-                    .host(settings.getServerUrl())
-                    .apiKey(settings.getApiKey())
-                )) {
-                    List<String> indices = client.indices().get(g -> g.index("*"))
-                        .indices().keySet().stream()
-                        // removing internal indices
-                        .filter(x -> !x.startsWith(".internal") && !x.startsWith(".ds"))
-                        .toList();
-
-                    for (String index : indices) {
-                        TypeMapping mappings = client.indices().get(g -> g.index(index))
-                            .indices().get(index).mappings();
-                        if (mappings != null) {
-                            List<String> fields = mappings.properties().keySet().stream().toList();
-                            indicesAndFields.put(index, fields);
-                        }
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException("Elasticsearch query failed: " + e.getMessage(), e);
-                }
-            }, 0, settings.getRefreshInterval(), TimeUnit.SECONDS);
+            connected = true;
+            startQueryThreadPool();
         }
+    }
+
+    public void disconnect() {
+        connected = false;
+        if (currentTask != null) {
+            currentTask.cancel(true);
+            currentTask = null;
+        }
+        indicesAndFields.clear();
+    }
+
+    private void startQueryThreadPool() {
+        if (currentTask != null) {
+            currentTask.cancel(true);
+        }
+        currentTask = scheduler.scheduleWithFixedDelay(() -> {
+            try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
+                .host(settings.getServerUrl())
+                .apiKey(settings.getApiKey())
+            )) {
+                List<String> indices = client.indices().get(g -> g.index("*"))
+                    .indices().keySet().stream()
+                    .filter(x -> !x.startsWith(".internal") && !x.startsWith(".ds"))
+                    .toList();
+
+                for (String index : indices) {
+                    TypeMapping mappings = client.indices().get(g -> g.index(index))
+                        .indices().get(index).mappings();
+                    if (mappings != null) {
+                        List<String> fields = mappings.properties().keySet().stream().toList();
+                        indicesAndFields.put(index, fields);
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Elasticsearch query failed: " + e.getMessage(), e);
+            }
+        }, 0, settings.getRefreshInterval(), TimeUnit.SECONDS);
     }
 }

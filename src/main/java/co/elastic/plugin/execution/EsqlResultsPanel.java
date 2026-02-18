@@ -45,6 +45,7 @@ public class EsqlResultsPanel extends JPanel {
     private final JPanel errorPanel;
     private final JBLabel errorLabel;
     private final ComboBox<String> connectionDropdown;
+    private final JButton connectButton;
 
     private final EsqlPluginSettings settings;
     private final EsqlPluginQueryManager queryManager;
@@ -69,11 +70,14 @@ public class EsqlResultsPanel extends JPanel {
                 String selected = (String) connectionDropdown.getSelectedItem();
                 if (selected != null) {
                     settings.activeConnectionName = selected;
-                    queryManager.startQueryThreadPool();
                 }
             }
         });
         toolbarPanel.add(connectionDropdown);
+
+        connectButton = createToolbarButton(AllIcons.Actions.Execute, "Connect");
+        connectButton.addActionListener(e -> toggleConnection());
+        toolbarPanel.add(connectButton);
 
         JButton addButton = createToolbarButton(AllIcons.General.Add, "Add connection");
         addButton.addActionListener(e -> addConnection());
@@ -89,7 +93,7 @@ public class EsqlResultsPanel extends JPanel {
 
         topPanel.add(toolbarPanel, BorderLayout.NORTH);
 
-        statusLabel = new JBLabel("No query executed yet");
+        statusLabel = new JBLabel("Not connected");
         statusLabel.setBorder(JBUI.Borders.empty(4, 8));
         topPanel.add(statusLabel, BorderLayout.SOUTH);
 
@@ -112,6 +116,7 @@ public class EsqlResultsPanel extends JPanel {
         add(errorPanel, BorderLayout.SOUTH);
 
         refreshDropdown();
+        updateConnectButton();
     }
 
     private JButton createToolbarButton(Icon icon, String tooltip) {
@@ -122,6 +127,38 @@ public class EsqlResultsPanel extends JPanel {
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         return button;
+    }
+
+    private void updateConnectButton() {
+        if (queryManager.isConnected()) {
+            connectButton.setIcon(AllIcons.Actions.Suspend);
+            connectButton.setToolTipText("Disconnect");
+            statusLabel.setText("Connected to: " + settings.activeConnectionName);
+        } else {
+            connectButton.setIcon(AllIcons.Actions.Execute);
+            connectButton.setToolTipText("Connect");
+            if (settings.connections.isEmpty()) {
+                statusLabel.setText("No connections configured");
+            } else {
+                statusLabel.setText("Not connected");
+            }
+        }
+    }
+
+    private void toggleConnection() {
+        if (queryManager.isConnected()) {
+            queryManager.disconnect();
+        } else {
+            if (settings.getActiveConnection() == null) {
+                Messages.showInfoMessage(
+                    "No connection selected. Add one with the + button and select it from the dropdown.",
+                    "Connect"
+                );
+                return;
+            }
+            queryManager.connect();
+        }
+        updateConnectButton();
     }
 
     private void refreshDropdown() {
@@ -142,7 +179,7 @@ public class EsqlResultsPanel extends JPanel {
             EsqlConnection conn = dialog.getConnection();
             settings.addConnection(conn);
             refreshDropdown();
-            queryManager.startQueryThreadPool();
+            updateConnectButton();
         }
     }
 
@@ -152,13 +189,17 @@ public class EsqlResultsPanel extends JPanel {
             Messages.showInfoMessage("No connection selected.", "Edit Connection");
             return;
         }
+        boolean wasConnected = queryManager.isConnected();
+        if (wasConnected) {
+            queryManager.disconnect();
+        }
         EsqlConnectionDialog dialog = new EsqlConnectionDialog(active);
         if (dialog.showAndGet()) {
             EsqlConnection updated = dialog.getConnection();
             settings.updateConnection(active.name, updated);
             refreshDropdown();
-            queryManager.startQueryThreadPool();
         }
+        updateConnectButton();
     }
 
     private void removeConnection() {
@@ -173,9 +214,12 @@ public class EsqlResultsPanel extends JPanel {
             Messages.getQuestionIcon()
         );
         if (result == Messages.YES) {
+            if (queryManager.isConnected()) {
+                queryManager.disconnect();
+            }
             settings.removeConnection(active);
             refreshDropdown();
-            queryManager.startQueryThreadPool();
+            updateConnectButton();
         }
     }
 
