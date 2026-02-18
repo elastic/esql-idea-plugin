@@ -70,6 +70,8 @@ public class EsqlResultsPanel extends JPanel {
                 String selected = (String) connectionDropdown.getSelectedItem();
                 if (selected != null) {
                     settings.activeConnectionName = selected;
+                    updateConnectButton();
+                    restoreCachedResults();
                 }
             }
         });
@@ -130,7 +132,7 @@ public class EsqlResultsPanel extends JPanel {
     }
 
     private void updateConnectButton() {
-        if (queryManager.isConnected()) {
+        if (queryManager.isActiveConnectionConnected()) {
             connectButton.setIcon(AllIcons.General.GreenCheckmark);
             connectButton.setToolTipText("Disconnect");
             statusLabel.setText("Connected to: " + settings.activeConnectionName);
@@ -146,7 +148,7 @@ public class EsqlResultsPanel extends JPanel {
     }
 
     private void toggleConnection() {
-        if (queryManager.isConnected()) {
+        if (queryManager.isActiveConnectionConnected()) {
             queryManager.disconnect();
         } else {
             if (settings.getActiveConnection() == null) {
@@ -189,9 +191,9 @@ public class EsqlResultsPanel extends JPanel {
             Messages.showInfoMessage("No connection selected.", "Edit Connection");
             return;
         }
-        boolean wasConnected = queryManager.isConnected();
+        boolean wasConnected = queryManager.isConnected(active.name);
         if (wasConnected) {
-            queryManager.disconnect();
+            queryManager.disconnect(active.name);
         }
         EsqlConnectionDialog dialog = new EsqlConnectionDialog(active);
         if (dialog.showAndGet()) {
@@ -214,8 +216,8 @@ public class EsqlResultsPanel extends JPanel {
             Messages.getQuestionIcon()
         );
         if (result == Messages.YES) {
-            if (queryManager.isConnected()) {
-                queryManager.disconnect();
+            if (queryManager.isConnected(active)) {
+                queryManager.disconnect(active);
             }
             settings.removeConnection(active);
             refreshDropdown();
@@ -230,6 +232,11 @@ public class EsqlResultsPanel extends JPanel {
     }
 
     public void updateResults(EsqlQueryResult result, long elapsedMs) {
+        queryManager.cacheResult(result, elapsedMs);
+        displayResult(result, elapsedMs);
+    }
+
+    private void displayResult(EsqlQueryResult result, long elapsedMs) {
         if (result.isError()) {
             showError(result.error());
             return;
@@ -270,6 +277,16 @@ public class EsqlResultsPanel extends JPanel {
             : String.format("%.2f s", elapsedMs / 1000.0);
         statusLabel.setText(values.size() + " rows returned in " + timeStr
                             + "  |  " + columns.size() + " columns");
+    }
+
+    private void restoreCachedResults() {
+        EsqlPluginQueryManager.CachedResult cached = queryManager.getCachedResult();
+        if (cached != null) {
+            displayResult(cached.result(), cached.elapsedMs());
+        } else {
+            table.setModel(new DefaultTableModel());
+            errorPanel.setVisible(false);
+        }
     }
 
     public void showError(String errorMessage) {

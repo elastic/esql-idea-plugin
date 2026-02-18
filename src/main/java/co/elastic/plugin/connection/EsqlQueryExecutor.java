@@ -42,7 +42,7 @@ public class EsqlQueryExecutor {
     public static EsqlQueryResult execute(String query) {
         EsqlPluginQueryManager queryManager = ApplicationManager.getApplication()
             .getService(EsqlPluginQueryManager.class);
-        if (!queryManager.isConnected()) {
+        if (!queryManager.isActiveConnectionConnected()) {
             return EsqlQueryResult.error("Not connected. Click the connect button in the Elasticsearch panel.");
         }
 
