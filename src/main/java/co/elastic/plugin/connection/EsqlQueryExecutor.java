@@ -46,11 +46,8 @@ public class EsqlQueryExecutor {
         String serverUrl = settings.getServerUrl();
         String apiKey = settings.getApiKey();
 
-        if (serverUrl == null || serverUrl.isEmpty()) {
-            return EsqlQueryResult.error("Elasticsearch URL is not configured. Go to Settings > ES|QL Plugin Settings.");
-        }
-        if (apiKey == null || apiKey.isEmpty()) {
-            return EsqlQueryResult.error("API key is not configured. Go to Settings > ES|QL Plugin Settings.");
+        if (serverUrl == null || serverUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
+            return EsqlQueryResult.error("No connection configured. Add one in the ES|QL Results tool window.");
         }
 
         try {

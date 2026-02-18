@@ -60,8 +60,8 @@ public final class EsqlPluginQueryManager {
             }
             currentTask = scheduler.scheduleWithFixedDelay(() -> {
                 try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-                    .host(settings.serverUrl)
-                    .apiKey(settings.apiKey)
+                    .host(settings.getServerUrl())
+                    .apiKey(settings.getApiKey())
                 )) {
                     List<String> indices = client.indices().get(g -> g.index("*"))
                         .indices().keySet().stream()
