@@ -20,6 +20,7 @@ package co.elastic.plugin.connection;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.plugin.settings.EsqlConnection;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.util.concurrency.AppExecutorUtil;
@@ -34,55 +35,98 @@ import java.util.concurrent.TimeUnit;
 
 public final class EsqlPluginQueryManager {
 
-    ScheduledExecutorService scheduler = AppExecutorUtil.getAppScheduledExecutorService();
-    ScheduledFuture currentTask;
+    private static class ConnectionState {
+        ScheduledFuture<?> task;
+        final ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
+    }
 
-    EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
+    public record CachedResult(EsqlQueryResult result, long elapsedMs) {}
 
-    private volatile boolean connected = false;
+    private final ScheduledExecutorService scheduler = AppExecutorUtil.getAppScheduledExecutorService();
+    private final EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
+    private final ConcurrentHashMap<String, ConnectionState> activeConnections = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CachedResult> cachedResults = new ConcurrentHashMap<>();
 
-    private ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
+    public boolean isConnected(String connectionName) {
+        return activeConnections.containsKey(connectionName);
+    }
 
-    public boolean isConnected() {
-        return connected;
+    public boolean isActiveConnectionConnected() {
+        return isConnected(settings.activeConnectionName);
     }
 
     public List<String> getIndices() {
-        return new ArrayList<>(indicesAndFields.keySet());
+        ConnectionState state = activeConnections.get(settings.activeConnectionName);
+        if (state == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(state.indicesAndFields.keySet());
     }
 
     public List<String> getFields(String indexName) {
-        List<String> result = indicesAndFields.get(indexName);
-        if (result == null) {
-            result = new ArrayList<>();
+        ConnectionState state = activeConnections.get(settings.activeConnectionName);
+        if (state == null) {
+            return new ArrayList<>();
         }
-        return result;
+        List<String> result = state.indicesAndFields.get(indexName);
+        return result != null ? result : new ArrayList<>();
+    }
+
+    public void cacheResult(EsqlQueryResult result, long elapsedMs) {
+        String connectionName = settings.activeConnectionName;
+        if (!connectionName.isEmpty()) {
+            cachedResults.put(connectionName, new CachedResult(result, elapsedMs));
+        }
+    }
+
+    public CachedResult getCachedResult() {
+        return cachedResults.get(settings.activeConnectionName);
+    }
+
+    public CachedResult getCachedResult(String connectionName) {
+        return cachedResults.get(connectionName);
+    }
+
+    public void clearCachedResult(String connectionName) {
+        cachedResults.remove(connectionName);
     }
 
     public void connect() {
-        if (!settings.getServerUrl().isEmpty() && !settings.getApiKey().isEmpty()) {
-            connected = true;
-            startQueryThreadPool();
+        String connectionName = settings.activeConnectionName;
+        EsqlConnection conn = settings.getActiveConnection();
+        if (conn == null || conn.serverUrl.isEmpty() || conn.apiKey.isEmpty()) {
+            return;
         }
+        if (activeConnections.containsKey(connectionName)) {
+            return;
+        }
+        ConnectionState state = new ConnectionState();
+        activeConnections.put(connectionName, state);
+        startQueryThreadPool(connectionName, conn, state);
     }
 
     public void disconnect() {
-        connected = false;
-        if (currentTask != null) {
-            currentTask.cancel(true);
-            currentTask = null;
-        }
-        indicesAndFields.clear();
+        disconnect(settings.activeConnectionName);
     }
 
-    private void startQueryThreadPool() {
-        if (currentTask != null) {
-            currentTask.cancel(true);
+    public void disconnect(String connectionName) {
+        ConnectionState state = activeConnections.remove(connectionName);
+        if (state != null && state.task != null) {
+            state.task.cancel(true);
         }
-        currentTask = scheduler.scheduleWithFixedDelay(() -> {
+    }
+
+    public void disconnectAll() {
+        for (String connectionName : new ArrayList<>(activeConnections.keySet())) {
+            disconnect(connectionName);
+        }
+    }
+
+    private void startQueryThreadPool(String connectionName, EsqlConnection conn, ConnectionState state) {
+        state.task = scheduler.scheduleWithFixedDelay(() -> {
             try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-                .host(settings.getServerUrl())
-                .apiKey(settings.getApiKey())
+                .host(conn.serverUrl)
+                .apiKey(conn.apiKey)
             )) {
                 List<String> indices = client.indices().get(g -> g.index("*"))
                     .indices().keySet().stream()
@@ -94,12 +138,12 @@ public final class EsqlPluginQueryManager {
                         .indices().get(index).mappings();
                     if (mappings != null) {
                         List<String> fields = mappings.properties().keySet().stream().toList();
-                        indicesAndFields.put(index, fields);
+                        state.indicesAndFields.put(index, fields);
                     }
                 }
             } catch (IOException e) {
                 throw new RuntimeException("Elasticsearch query failed: " + e.getMessage(), e);
             }
-        }, 0, settings.getRefreshInterval(), TimeUnit.SECONDS);
+        }, 0, conn.refreshInterval, TimeUnit.SECONDS);
     }
 }
