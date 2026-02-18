@@ -18,54 +18,28 @@
  */
 package co.elastic.plugin;
 
-import co.elastic.plugin.execution.ExecuteEsqlQueryAction;
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.IconLoader;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.util.Objects;
 
 public final class EsqlIcon extends GutterIconRenderer {
 
     public static final Icon ESQL_ICON = IconLoader.getIcon("/META-INF/elasticsearch.svg", EsqlIcon.class);
 
-    private final Project project;
-    private final String queryText;
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof EsqlIcon;
+    }
 
-    public EsqlIcon(@NotNull Project project, @NotNull String queryText) {
-        this.project = project;
-        this.queryText = queryText;
+    @Override
+    public int hashCode() {
+        return EsqlIcon.class.hashCode();
     }
 
     @Override
     public @NotNull Icon getIcon() {
         return ESQL_ICON;
-    }
-
-    @Override
-    public @Nullable String getTooltipText() {
-        return "Execute ES|QL Query";
-    }
-
-    @Override
-    public @Nullable AnAction getClickAction() {
-        return new ExecuteEsqlQueryAction(project, queryText);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        EsqlIcon that = (EsqlIcon) o;
-        return Objects.equals(queryText, that.queryText);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(queryText);
     }
 }
