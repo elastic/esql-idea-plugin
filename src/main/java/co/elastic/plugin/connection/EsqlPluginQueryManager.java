@@ -27,7 +27,13 @@ import com.intellij.util.concurrency.AppExecutorUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public final class EsqlPluginQueryManager {
 
@@ -36,12 +42,12 @@ public final class EsqlPluginQueryManager {
         final ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
     }
 
-    public record CachedResult(EsqlQueryResult result, long elapsedMs) {}
+    public record CachedResult(String query, EsqlQueryResult result, long elapsedMs) {}
 
     private final ScheduledExecutorService scheduler = AppExecutorUtil.getAppScheduledExecutorService();
     private final EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
     private final ConcurrentHashMap<String, ConnectionState> activeConnections = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, CachedResult> cachedResults = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, List<CachedResult>> cachedResults = new ConcurrentHashMap<>();
 
     public boolean isConnected(String connectionName) {
         return activeConnections.containsKey(connectionName);
@@ -68,22 +74,32 @@ public final class EsqlPluginQueryManager {
         return result != null ? result : new ArrayList<>();
     }
 
-    public void cacheResult(EsqlQueryResult result, long elapsedMs) {
+    public void addCachedResult(String query, EsqlQueryResult result, long elapsedMs) {
         String connectionName = settings.activeConnectionName;
         if (!connectionName.isEmpty()) {
-            cachedResults.put(connectionName, new CachedResult(result, elapsedMs));
+            cachedResults.computeIfAbsent(connectionName, k -> new CopyOnWriteArrayList<>())
+                .add(new CachedResult(query, result, elapsedMs));
         }
     }
 
-    public CachedResult getCachedResult() {
-        return cachedResults.get(settings.activeConnectionName);
+    public List<CachedResult> getCachedResults() {
+        List<CachedResult> results = cachedResults.get(settings.activeConnectionName);
+        return results != null ? results : Collections.emptyList();
     }
 
-    public CachedResult getCachedResult(String connectionName) {
-        return cachedResults.get(connectionName);
+    public List<CachedResult> getCachedResults(String connectionName) {
+        List<CachedResult> results = cachedResults.get(connectionName);
+        return results != null ? results : Collections.emptyList();
     }
 
-    public void clearCachedResult(String connectionName) {
+    public void removeCachedResult(String connectionName, int index) {
+        List<CachedResult> results = cachedResults.get(connectionName);
+        if (results != null && index >= 0 && index < results.size()) {
+            results.remove(index);
+        }
+    }
+
+    public void clearCachedResults(String connectionName) {
         cachedResults.remove(connectionName);
     }
 

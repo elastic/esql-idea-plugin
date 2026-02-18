@@ -50,7 +50,7 @@ public class ExecuteEsqlQueryAction extends AnAction {
                 long startTime = System.currentTimeMillis();
                 EsqlQueryResult result = EsqlQueryExecutor.execute(queryText);
                 long elapsedMs = System.currentTimeMillis() - startTime;
-                EsqlResultsToolWindowFactory.showResults(project, result, elapsedMs);
+                EsqlResultsToolWindowFactory.showResults(project, queryText, result, elapsedMs);
             }
         });
     }
