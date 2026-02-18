@@ -50,6 +50,11 @@
       implementationClass="co.elastic.plugin.autocomplete.EsqlCompletionContributor"
       language="any"
     />
+    <completion.confidence
+      implementationClass="co.elastic.plugin.autocomplete.EsqlCompletionConfidence"
+      language="any"
+      order="first"
+    />
     <annotator language="JAVA" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
     <annotator language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
     <annotator language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>

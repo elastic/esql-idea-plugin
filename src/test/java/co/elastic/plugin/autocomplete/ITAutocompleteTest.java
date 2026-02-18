@@ -23,9 +23,13 @@ import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupManager;
 import com.intellij.codeInsight.lookup.impl.LookupImpl;
 import com.intellij.lang.Language;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.command.WriteCommandAction;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.testFramework.EdtTestUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import com.intellij.util.ThreeState;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,6 +47,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         return false;
     }
 
+    @Test
     public void testCompletionsJava() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset
@@ -392,5 +397,32 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         Assert.assertNotNull(elements);
         Assert.assertEquals(1, elements.length);
         Assert.assertEquals("{string}", elements[0].getLookupString());
+    }
+
+    @Test
+    public void testAutopopupEnabled() {
+        myFixture.configureByText("TestJava.java", """
+            package co.elastic.plugin;
+            
+            public class TestJava {
+                public static void main(String[] args) {
+                // ES|QL
+                String a = ""\"
+                        FROM <caret>
+                        ""\";
+                    }
+            }
+            """);
+
+        ReadAction.run(() -> {
+            EsqlCompletionConfidence confidence = new EsqlCompletionConfidence();
+            int offset = myFixture.getCaretOffset();
+            PsiFile psiFile = myFixture.getFile();
+            PsiElement element = psiFile.findElementAt(offset);
+            Assert.assertNotNull(element);
+
+            ThreeState result = confidence.shouldSkipAutopopup(element, psiFile, offset);
+            Assert.assertEquals(ThreeState.NO, result);
+        });
     }
 }
