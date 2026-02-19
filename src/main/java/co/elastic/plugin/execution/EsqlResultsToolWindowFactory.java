@@ -41,7 +41,7 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
         EsqlResultsPanel esqlPanel = new EsqlResultsPanel();
         panels.put(project, esqlPanel);
 
-        RestConsolePanel restConsolePanel = new RestConsolePanel();
+        RestConsolePanel restConsolePanel = new RestConsolePanel(project);
 
         ContentFactory contentFactory = ContentFactory.getInstance();
 

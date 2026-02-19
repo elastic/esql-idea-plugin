@@ -18,16 +18,11 @@
  */
 package co.elastic.plugin.execution;
 
-import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import co.elastic.plugin.connection.EsqlPluginQueryManagerImpl;
 import co.elastic.plugin.connection.EsqlQueryResult;
-import co.elastic.plugin.settings.EsqlConnection;
-import co.elastic.plugin.settings.EsqlConnectionDialog;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.ui.ComboBox;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTabbedPane;
@@ -37,22 +32,17 @@ import com.intellij.util.ui.JBUI;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ItemEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
 public class EsqlResultsPanel extends JPanel {
 
-    private final JBLabel statusLabel;
+    private final ConnectionToolbar connectionToolbar;
     private final JBTabbedPane tabbedPane;
-    private final ComboBox<String> connectionDropdown;
-    private final JButton connectButton;
 
     private final EsqlPluginSettings settings;
     private final EsqlPluginQueryManagerImpl queryManager;
-
-    private boolean updatingDropdown = false;
 
     public EsqlResultsPanel() {
         super(new BorderLayout());
@@ -60,167 +50,16 @@ public class EsqlResultsPanel extends JPanel {
         settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
         queryManager = ApplicationManager.getApplication().getService(EsqlPluginQueryManagerImpl.class);
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-
-        JPanel toolbarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        toolbarPanel.setBorder(JBUI.Borders.empty(2, 4));
-
-        connectionDropdown = new ComboBox<>();
-        connectionDropdown.setMinimumAndPreferredWidth(200);
-        connectionDropdown.setRenderer(new ConnectionListCellRenderer());
-        connectionDropdown.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED && !updatingDropdown) {
-                String selected = (String) connectionDropdown.getSelectedItem();
-                if (selected != null) {
-                    settings.activeConnectionName = selected;
-                    updateConnectButton();
-                    restoreCachedResults();
-                }
-            }
-        });
-        toolbarPanel.add(connectionDropdown);
-
-        connectButton = createToolbarButton(AllIcons.Debugger.ThreadStates.Socket, "Connect");
-        connectButton.addActionListener(e -> toggleConnection());
-        toolbarPanel.add(connectButton);
-
-        JButton addButton = createToolbarButton(AllIcons.General.Add, "Add connection");
-        addButton.addActionListener(e -> addConnection());
-        toolbarPanel.add(addButton);
-
-        JButton editButton = createToolbarButton(AllIcons.Actions.Edit, "Edit connection");
-        editButton.addActionListener(e -> editConnection());
-        toolbarPanel.add(editButton);
-
-        JButton removeButton = createToolbarButton(AllIcons.General.Delete, "Remove connection");
-        removeButton.addActionListener(e -> removeConnection());
-        toolbarPanel.add(removeButton);
-
-        topPanel.add(toolbarPanel, BorderLayout.NORTH);
-
-        statusLabel = new JBLabel("Not connected");
-        statusLabel.setBorder(JBUI.Borders.empty(4, 8));
-        topPanel.add(statusLabel, BorderLayout.SOUTH);
-
-        add(topPanel, BorderLayout.NORTH);
+        connectionToolbar = new ConnectionToolbar();
+        connectionToolbar.setConnectionChangeListener(this::restoreCachedResults);
+        add(connectionToolbar, BorderLayout.NORTH);
 
         tabbedPane = new JBTabbedPane();
         add(tabbedPane, BorderLayout.CENTER);
-
-        refreshDropdown();
-        updateConnectButton();
-    }
-
-    private JButton createToolbarButton(Icon icon, String tooltip) {
-        JButton button = new JButton(icon);
-        button.setToolTipText(tooltip);
-        button.setPreferredSize(new Dimension(28, 28));
-        button.setContentAreaFilled(false);
-        button.setBorderPainted(false);
-        button.setFocusPainted(false);
-        return button;
-    }
-
-    private void updateConnectButton() {
-        if (queryManager.isActiveConnectionConnected()) {
-            connectButton.setIcon(AllIcons.Actions.OfflineMode);
-            connectButton.setToolTipText("Disconnect");
-            statusLabel.setText("Connected");
-        } else {
-            connectButton.setIcon(AllIcons.Debugger.ThreadStates.Socket);
-            connectButton.setToolTipText("Connect");
-            if (settings.connections.isEmpty()) {
-                statusLabel.setText("No connections configured");
-            } else {
-                statusLabel.setText("Not connected");
-            }
-        }
-    }
-
-    private void toggleConnection() {
-        if (queryManager.isActiveConnectionConnected()) {
-            queryManager.disconnect();
-        } else {
-            if (settings.getActiveConnection() == null) {
-                Messages.showInfoMessage(
-                    "No connection selected. Add one with the + button and select it from the dropdown.",
-                    "Connect"
-                );
-                return;
-            }
-            queryManager.connect();
-        }
-        updateConnectButton();
-        connectionDropdown.repaint();
-    }
-
-    private void refreshDropdown() {
-        updatingDropdown = true;
-        connectionDropdown.removeAllItems();
-        for (String name : settings.getConnectionNames()) {
-            connectionDropdown.addItem(name);
-        }
-        if (!settings.activeConnectionName.isEmpty()) {
-            connectionDropdown.setSelectedItem(settings.activeConnectionName);
-        }
-        updatingDropdown = false;
-        connectionDropdown.repaint();
-    }
-
-    private void addConnection() {
-        EsqlConnectionDialog dialog = new EsqlConnectionDialog(null);
-        if (dialog.showAndGet()) {
-            EsqlConnection conn = dialog.getConnection();
-            settings.addConnection(conn);
-            refreshDropdown();
-            updateConnectButton();
-        }
-    }
-
-    private void editConnection() {
-        EsqlConnection active = settings.getActiveConnection();
-        if (active == null) {
-            Messages.showInfoMessage("No connection selected.", "Edit Connection");
-            return;
-        }
-        boolean wasConnected = queryManager.isConnected(active.name);
-        if (wasConnected) {
-            queryManager.disconnect(active.name);
-        }
-        EsqlConnectionDialog dialog = new EsqlConnectionDialog(active);
-        if (dialog.showAndGet()) {
-            EsqlConnection updated = dialog.getConnection();
-            settings.updateConnection(active.name, updated);
-            refreshDropdown();
-        }
-        updateConnectButton();
-    }
-
-    private void removeConnection() {
-        String active = settings.activeConnectionName;
-        if (active.isEmpty()) {
-            Messages.showInfoMessage("No connection selected.", "Remove Connection");
-            return;
-        }
-        int result = Messages.showYesNoDialog(
-            "Remove connection \"" + active + "\"?",
-            "Remove Connection",
-            Messages.getQuestionIcon()
-        );
-        if (result == Messages.YES) {
-            if (queryManager.isConnected(active)) {
-                queryManager.disconnect(active);
-            }
-            queryManager.clearCachedResults(active);
-            settings.removeConnection(active);
-            refreshDropdown();
-            restoreCachedResults();
-            updateConnectButton();
-        }
     }
 
     public void showLoading(String query) {
-        statusLabel.setText("Executing query...");
+        connectionToolbar.getStatusLabel().setText("Executing query...");
     }
 
     public void updateResults(String query, EsqlQueryResult result, long elapsedMs) {
@@ -231,23 +70,23 @@ public class EsqlResultsPanel extends JPanel {
     private void addResultTab(String query, EsqlQueryResult result, long elapsedMs) {
         String tabTitle = truncateQuery(query);
         JPanel tabContent = createResultPanel(result);
-        
+
         tabbedPane.addTab(tabTitle, tabContent);
         int tabIndex = tabbedPane.getTabCount() - 1;
         tabbedPane.setToolTipTextAt(tabIndex, query);
         tabbedPane.setTabComponentAt(tabIndex, createTabHeader(tabTitle));
         tabbedPane.setSelectedIndex(tabIndex);
-        
+
         updateStatusForResult(result, elapsedMs);
     }
 
     private JPanel createTabHeader(String title) {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         header.setOpaque(false);
-        
+
         JLabel titleLabel = new JLabel(title);
         header.add(titleLabel);
-        
+
         JButton closeButton = new JButton(AllIcons.Actions.Close);
         closeButton.setPreferredSize(new Dimension(16, 16));
         closeButton.setContentAreaFilled(false);
@@ -263,7 +102,7 @@ public class EsqlResultsPanel extends JPanel {
             }
         });
         header.add(closeButton);
-        
+
         return header;
     }
 
@@ -284,7 +123,7 @@ public class EsqlResultsPanel extends JPanel {
 
     private JPanel createResultPanel(EsqlQueryResult result) {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         if (result.isError()) {
             JPanel errorPanel = new JPanel(new BorderLayout());
             errorPanel.setBorder(JBUI.Borders.empty(8));
@@ -319,7 +158,7 @@ public class EsqlResultsPanel extends JPanel {
                 return false;
             }
         };
-        
+
         JBTable table = new JBTable(model);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         table.setFillsViewportHeight(true);
@@ -336,6 +175,7 @@ public class EsqlResultsPanel extends JPanel {
     }
 
     private void updateStatusForResult(EsqlQueryResult result, long elapsedMs) {
+        JBLabel statusLabel = connectionToolbar.getStatusLabel();
         if (result.isError()) {
             statusLabel.setText("Query failed");
         } else {
@@ -351,18 +191,18 @@ public class EsqlResultsPanel extends JPanel {
 
     private void restoreCachedResults() {
         tabbedPane.removeAll();
-        
+
         List<EsqlPluginQueryManagerImpl.CachedResult> results = queryManager.getCachedResults();
         for (int i = 0; i < results.size(); i++) {
             EsqlPluginQueryManagerImpl.CachedResult cached = results.get(i);
             String tabTitle = truncateQuery(cached.query());
             JPanel tabContent = createResultPanel(cached.result());
-            
+
             tabbedPane.addTab(tabTitle, tabContent);
             tabbedPane.setToolTipTextAt(i, cached.query());
             tabbedPane.setTabComponentAt(i, createTabHeader(tabTitle));
         }
-        
+
         if (!results.isEmpty()) {
             tabbedPane.setSelectedIndex(results.size() - 1);
             EsqlPluginQueryManagerImpl.CachedResult last = results.get(results.size() - 1);
@@ -371,24 +211,6 @@ public class EsqlResultsPanel extends JPanel {
     }
 
     public void showError(String errorMessage) {
-        statusLabel.setText("Query failed");
-    }
-
-    private class ConnectionListCellRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, 
-                                                       boolean isSelected, boolean cellHasFocus) {
-            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            
-            if (value instanceof String connectionName) {
-                if (queryManager.isConnected(connectionName)) {
-                    label.setIcon(AllIcons.General.InspectionsOK);
-                } else {
-                    label.setIcon(null);
-                }
-            }
-            
-            return label;
-        }
+        connectionToolbar.getStatusLabel().setText("Query failed");
     }
 }

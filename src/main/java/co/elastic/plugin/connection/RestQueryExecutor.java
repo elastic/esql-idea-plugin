@@ -167,7 +167,7 @@ public class RestQueryExecutor {
         EsqlPluginQueryManagerImpl queryManager = ApplicationManager.getApplication()
             .getService(EsqlPluginQueryManagerImpl.class);
         if (!queryManager.isActiveConnectionConnected()) {
-            return RestResult.error("Not connected. Use the connection controls in the ES|QL Results tab to connect first.");
+            return RestResult.error("Not connected. Click the connect button in the Elasticsearch panel.");
         }
 
         EsqlPluginSettings settings = ApplicationManager.getApplication()
@@ -177,7 +177,7 @@ public class RestQueryExecutor {
         String apiKey = settings.getApiKey();
 
         if (serverUrl == null || serverUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            return RestResult.error("No connection configured. Add one in the ES|QL Results tab.");
+            return RestResult.error("No connection configured. Add one with the + button.");
         }
 
         try {
