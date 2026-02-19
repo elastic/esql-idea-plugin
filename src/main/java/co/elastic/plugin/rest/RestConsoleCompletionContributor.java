@@ -26,6 +26,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.patterns.PlatformPatterns;
 import com.intellij.util.ProcessingContext;
+import com.intellij.psi.PsiElement;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,6 +45,16 @@ public class RestConsoleCompletionContributor extends CompletionContributor {
 
     public RestConsoleCompletionContributor() {
         extend(CompletionType.BASIC, PlatformPatterns.psiElement(), new RestCompletionProvider());
+    }
+
+    @Override
+    public boolean invokeAutoPopup(@NotNull PsiElement position, char typeChar) {
+        if (position.getContainingFile() instanceof ElasticsearchRestFile) {
+            return typeChar == '/' || typeChar == '?' || typeChar == '&'
+                || typeChar == ' ' || typeChar == '"' || typeChar == ','
+                || typeChar == '{' || typeChar == '\n';
+        }
+        return false;
     }
 
     enum Zone { METHOD, PATH, QUERY_PARAM, BODY }
@@ -240,6 +251,14 @@ public class RestConsoleCompletionContributor extends CompletionContributor {
 
             boolean liveIndicesAdded = false;
             for (RestApiSpecService.PathCompletion pc : completions) {
+                if (pc.paramName() != null && INDEX_PARAM_NAMES.contains(pc.paramName())) {
+                    if (!liveIndicesAdded) {
+                        liveIndicesAdded = true;
+                        addLiveIndexCompletions(pathResult);
+                    }
+                    continue;
+                }
+
                 String lookupString = pc.text();
                 LookupElementBuilder element = LookupElementBuilder.create(lookupString)
                     .withIcon(AllIcons.Nodes.WebFolder)
@@ -248,18 +267,13 @@ public class RestConsoleCompletionContributor extends CompletionContributor {
 
                 if (pc.paramName() != null) {
                     element = element.withTypeText("{" + pc.paramName() + "}", true);
-
-                    if (!liveIndicesAdded && INDEX_PARAM_NAMES.contains(pc.paramName())) {
-                        liveIndicesAdded = true;
-                        addLiveIndexCompletions(pathResult, prefix);
-                    }
                 }
 
                 pathResult.addElement(PrioritizedLookupElement.withPriority(element, 50));
             }
         }
 
-        private void addLiveIndexCompletions(CompletionResultSet result, String prefix) {
+        private void addLiveIndexCompletions(CompletionResultSet result) {
             try {
                 EsqlPluginQueryManagerImpl queryManager =
                     ApplicationManager.getApplication().getService(EsqlPluginQueryManagerImpl.class);
@@ -267,7 +281,6 @@ public class RestConsoleCompletionContributor extends CompletionContributor {
 
                 List<String> indices = queryManager.getIndices();
                 for (String indexName : indices) {
-                    if (!indexName.startsWith(prefix) && !prefix.isEmpty()) continue;
                     LookupElementBuilder element = LookupElementBuilder.create(indexName)
                         .withIcon(AllIcons.Nodes.DataTables)
                         .withTypeText("live index", true)

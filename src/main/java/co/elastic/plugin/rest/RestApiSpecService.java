@@ -136,13 +136,11 @@ public class RestApiSpecService {
                     if (nextSegment.startsWith("{")) {
                         String paramName = nextSegment.substring(1, nextSegment.length() - 1);
                         String placeholder = "<" + paramName + ">";
-                        if (placeholder.startsWith(typedPrefix) || typedPrefix.isEmpty()) {
-                            String key = pattern + ":" + paramName;
-                            if (seen.add(key)) {
-                                completions.add(new PathCompletion(
-                                    placeholder, pattern, ep.description(), paramName
-                                ));
-                            }
+                        String key = pattern + ":" + paramName;
+                        if (seen.add(key)) {
+                            completions.add(new PathCompletion(
+                                placeholder, pattern, ep.description(), paramName
+                            ));
                         }
                     } else {
                         if (nextSegment.startsWith(typedPrefix)) {
