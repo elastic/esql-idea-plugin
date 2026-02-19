@@ -34,6 +34,7 @@ import com.intellij.openapi.editor.markup.HighlighterLayer;
 import com.intellij.openapi.editor.markup.HighlighterTargetArea;
 import com.intellij.openapi.editor.markup.RangeHighlighter;
 import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
@@ -69,7 +70,10 @@ public class RestConsolePanel extends JPanel implements Disposable {
         LightVirtualFile requestFile = new LightVirtualFile(
             "request.es-rest", ElasticsearchRestFileType.INSTANCE, INITIAL_CONTENT
         );
-        Document requestDocument = EditorFactory.getInstance().createDocument(INITIAL_CONTENT);
+        Document requestDocument = FileDocumentManager.getInstance().getDocument(requestFile);
+        if (requestDocument == null) {
+            requestDocument = EditorFactory.getInstance().createDocument(INITIAL_CONTENT);
+        }
         requestEditor = EditorFactory.getInstance().createEditor(requestDocument, project, requestFile, false);
 
         requestEditor.getSettings().setLineNumbersShown(false);
