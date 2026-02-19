@@ -45,6 +45,7 @@
     <postStartupActivity implementation="co.elastic.plugin.ElasticPluginStartup"/>
     <applicationService serviceImplementation="co.elastic.plugin.settings.EsqlPluginSettings"/>
     <applicationService serviceImplementation="co.elastic.plugin.connection.EsqlPluginQueryManagerImpl"/>
+    <applicationService serviceImplementation="co.elastic.plugin.rest.RestApiSpecService"/>
     <projectConfigurable groupId="language" instance="co.elastic.plugin.settings.EsqlPluginConfigurable"/>
     <completion.contributor
       implementationClass="co.elastic.plugin.autocomplete.EsqlCompletionContributor"
@@ -65,6 +66,20 @@
                 anchor="bottom"
                 factoryClass="co.elastic.plugin.execution.EsqlResultsToolWindowFactory"
                 icon="/META-INF/elasticsearch.svg"/>
+
+    <fileType name="ElasticsearchREST"
+              language="ElasticsearchREST"
+              implementationClass="co.elastic.plugin.rest.ElasticsearchRestFileType"
+              fieldName="INSTANCE"
+              extensions="es-rest"/>
+    <lang.parserDefinition language="ElasticsearchREST"
+                           implementationClass="co.elastic.plugin.rest.ElasticsearchRestParserDefinition"/>
+
+    <completion.contributor language="ElasticsearchREST"
+                            implementationClass="co.elastic.plugin.rest.RestConsoleCompletionContributor"/>
+    <completion.confidence language="ElasticsearchREST"
+                           implementationClass="co.elastic.plugin.rest.RestConsoleCompletionConfidence"
+                           order="first"/>
 
   </extensions>
 </idea-plugin>

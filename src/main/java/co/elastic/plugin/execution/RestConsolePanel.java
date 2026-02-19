@@ -19,6 +19,7 @@
 package co.elastic.plugin.execution;
 
 import co.elastic.plugin.connection.RestQueryExecutor;
+import co.elastic.plugin.rest.ElasticsearchRestFileType;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
@@ -26,44 +27,80 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.ScrollType;
+import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.editor.event.CaretEvent;
+import com.intellij.openapi.editor.event.CaretListener;
+import com.intellij.openapi.editor.markup.HighlighterLayer;
+import com.intellij.openapi.editor.markup.HighlighterTargetArea;
+import com.intellij.openapi.editor.markup.RangeHighlighter;
+import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
-import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
-import javax.swing.text.DefaultHighlighter;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
 public class RestConsolePanel extends JPanel implements Disposable {
 
-    private final JTextArea requestEditor;
+    private final Editor requestEditor;
     private final Editor responseEditor;
     private final JBLabel statusLabel;
     private final JButton executeButton;
+    private RangeHighlighter requestHighlighter;
 
     private static final Color HIGHLIGHT_COLOR = new JBColor(
         new Color(232, 242, 255), new Color(50, 53, 56)
     );
 
-    private static final String INITIAL_CONTENT = """
-            GET /_cat/indices
-            
-            """;
+    private static final String INITIAL_CONTENT = "GET /_cat/indices\n\n";
 
     public RestConsolePanel(Project project) {
         super(new BorderLayout());
 
+        // Request editor: IntelliJ Editor backed by custom ElasticsearchREST FileType for PSI/completion support
+        LightVirtualFile requestFile = new LightVirtualFile(
+            "request.es-rest", ElasticsearchRestFileType.INSTANCE, INITIAL_CONTENT
+        );
+        Document requestDocument = EditorFactory.getInstance().createDocument(INITIAL_CONTENT);
+        requestEditor = EditorFactory.getInstance().createEditor(requestDocument, project, requestFile, false);
+
+        requestEditor.getSettings().setLineNumbersShown(false);
+        requestEditor.getSettings().setFoldingOutlineShown(false);
+        requestEditor.getSettings().setLineMarkerAreaShown(false);
+        requestEditor.getSettings().setGutterIconsShown(false);
+        requestEditor.getSettings().setAdditionalLinesCount(1);
+        requestEditor.getSettings().setUseSoftWraps(false);
+
+        requestEditor.getCaretModel().addCaretListener(new CaretListener() {
+            @Override
+            public void caretPositionChanged(@SuppressWarnings("NotNullFieldNotInitialized") CaretEvent e) {
+                updateRequestHighlight();
+            }
+        });
+
+        requestEditor.getContentComponent().addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER
+                    && (e.getModifiersEx() & Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()) != 0) {
+                    executeRequest();
+                    e.consume();
+                }
+            }
+        });
+
+        // Response editor: JSON-highlighted read-only editor with Ctrl+F search support
         Document responseDocument = EditorFactory.getInstance().createDocument("");
         FileType jsonFileType = FileTypeManager.getInstance().getFileTypeByExtension("json");
-        responseEditor = EditorFactory.getInstance().createEditor(
-            responseDocument, project, jsonFileType, true
-        );
+        responseEditor = EditorFactory.getInstance().createEditor(responseDocument, project, jsonFileType, true);
 
         responseEditor.getSettings().setLineNumbersShown(false);
         responseEditor.getSettings().setFoldingOutlineShown(true);
@@ -101,26 +138,9 @@ public class RestConsolePanel extends JPanel implements Disposable {
         northPanel.add(executeToolbar, BorderLayout.SOUTH);
         add(northPanel, BorderLayout.NORTH);
 
-        requestEditor = new JTextArea(INITIAL_CONTENT.stripIndent());
-        requestEditor.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        requestEditor.setTabSize(2);
-        requestEditor.setMargin(JBUI.insets(8));
-
-        int modifier = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
-        requestEditor.getInputMap().put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, modifier), "executeRequest");
-        requestEditor.getActionMap().put("executeRequest", new AbstractAction() {
-            @Override
-            public void actionPerformed(java.awt.event.ActionEvent e) {
-                executeRequest();
-            }
-        });
-
-        requestEditor.addCaretListener(e -> updateRequestHighlight());
-
         JPanel requestPanel = new JPanel(new BorderLayout());
         requestPanel.setBorder(BorderFactory.createTitledBorder("Request"));
-        requestPanel.add(new JBScrollPane(requestEditor), BorderLayout.CENTER);
+        requestPanel.add(requestEditor.getComponent(), BorderLayout.CENTER);
 
         JPanel responsePanel = new JPanel(new BorderLayout());
         responsePanel.setBorder(BorderFactory.createTitledBorder("Response"));
@@ -140,6 +160,7 @@ public class RestConsolePanel extends JPanel implements Disposable {
 
     @Override
     public void dispose() {
+        EditorFactory.getInstance().releaseEditor(requestEditor);
         EditorFactory.getInstance().releaseEditor(responseEditor);
     }
 
@@ -157,32 +178,47 @@ public class RestConsolePanel extends JPanel implements Disposable {
     }
 
     private void updateRequestHighlight() {
+        if (requestHighlighter != null) {
+            requestEditor.getMarkupModel().removeHighlighter(requestHighlighter);
+            requestHighlighter = null;
+        }
+
+        int startOffset = -1;
+        int endOffset = -1;
         try {
-            int caretPos = requestEditor.getCaretPosition();
-            int caretLine = requestEditor.getLineOfOffset(caretPos);
+            Document doc = requestEditor.getDocument();
+            int caretOffset = ApplicationManager.getApplication().runReadAction(
+                (com.intellij.openapi.util.Computable<Integer>) () -> requestEditor.getCaretModel().getOffset()
+            );
+            int caretLine = doc.getLineNumber(caretOffset);
 
             List<RestQueryExecutor.RequestBlock> blocks =
-                RestQueryExecutor.splitRequests(requestEditor.getText());
+                RestQueryExecutor.splitRequests(doc.getText());
             RestQueryExecutor.RequestBlock current =
                 RestQueryExecutor.findRequestAtLine(blocks, caretLine);
 
-            requestEditor.getHighlighter().removeAllHighlights();
-
             if (current != null) {
-                int startOffset = requestEditor.getLineStartOffset(current.startLine());
-                int endLine = Math.min(current.endLine(), requestEditor.getLineCount() - 1);
-                int endOffset = requestEditor.getLineEndOffset(endLine);
-
-                requestEditor.getHighlighter().addHighlight(
-                    startOffset, endOffset,
-                    new DefaultHighlighter.DefaultHighlightPainter(HIGHLIGHT_COLOR)
-                );
+                startOffset = doc.getLineStartOffset(current.startLine());
+                int endLine = Math.min(current.endLine(), doc.getLineCount() - 1);
+                endOffset = doc.getLineEndOffset(endLine);
             }
         } catch (Exception ignored) {}
+
+        if (startOffset >= 0 && endOffset > startOffset) {
+            TextAttributes attrs = new TextAttributes();
+            attrs.setBackgroundColor(HIGHLIGHT_COLOR);
+            requestHighlighter = requestEditor.getMarkupModel().addRangeHighlighter(
+                startOffset, endOffset,
+                HighlighterLayer.SELECTION - 1,
+                attrs,
+                HighlighterTargetArea.LINES_IN_RANGE
+            );
+        }
     }
 
     private void executeRequest() {
-        String text = requestEditor.getText();
+        Document doc = requestEditor.getDocument();
+        String text = doc.getText();
         List<RestQueryExecutor.RequestBlock> blocks = RestQueryExecutor.splitRequests(text);
         if (blocks.isEmpty()) {
             setResponseText(
@@ -196,8 +232,10 @@ public class RestConsolePanel extends JPanel implements Disposable {
 
         RestQueryExecutor.RequestBlock block;
         try {
-            int caretPos = requestEditor.getCaretPosition();
-            int caretLine = requestEditor.getLineOfOffset(caretPos);
+            int caretOffset = ApplicationManager.getApplication().runReadAction(
+                (com.intellij.openapi.util.Computable<Integer>) () -> requestEditor.getCaretModel().getOffset()
+            );
+            int caretLine = doc.getLineNumber(caretOffset);
             block = RestQueryExecutor.findRequestAtLine(blocks, caretLine);
         } catch (Exception e) {
             block = blocks.getFirst();

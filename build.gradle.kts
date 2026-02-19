@@ -82,6 +82,7 @@ dependencies {
     implementation("co.elastic.clients:elasticsearch-java:9.3.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation(project(":antlr"))
+    implementation("org.elasticsearch:rest-api-spec:9.0.3")
 }
 kotlin {
     jvmToolchain {
@@ -110,6 +111,11 @@ tasks.register("downloadDocs") {
 
 tasks.register<Exec>("processDocs") {
     commandLine("sh", "./convert-docs.sh")
+}
+
+tasks.register<Exec>("generateBodySchemas") {
+    description = "Generate body-schemas.json from elasticsearch-specification schema.json"
+    commandLine("python3", "scripts/generate-body-schemas.py")
 }
 
 tasks.register("createJavaFileWithDocs") {
