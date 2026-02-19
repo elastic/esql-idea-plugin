@@ -74,7 +74,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
             switch (c.kind()) {
                 case METADATA, NAME, FIELD:
-                    LookupElement lookup = LookupElementBuilder.create(lastToken.getText());
+                    LookupElement lookup = LookupElementBuilder.create(c.text());
                     result.withPrefixMatcher(new PermissivePrefixMatcher())
                         .addElement(PrioritizedLookupElement
                             .withPriority(LookupElementDecorator.withRenderer(lookup, new LookupElementRenderer<>() {

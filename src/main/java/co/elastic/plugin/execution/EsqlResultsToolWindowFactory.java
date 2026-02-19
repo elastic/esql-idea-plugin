@@ -38,11 +38,18 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        EsqlResultsPanel panel = new EsqlResultsPanel();
-        panels.put(project, panel);
+        EsqlResultsPanel esqlPanel = new EsqlResultsPanel();
+        panels.put(project, esqlPanel);
 
-        Content content = ContentFactory.getInstance().createContent(panel, "", false);
-        toolWindow.getContentManager().addContent(content);
+        RestConsolePanel restConsolePanel = new RestConsolePanel();
+
+        ContentFactory contentFactory = ContentFactory.getInstance();
+
+        Content esqlContent = contentFactory.createContent(esqlPanel, "ES|QL", false);
+        toolWindow.getContentManager().addContent(esqlContent);
+
+        Content restContent = contentFactory.createContent(restConsolePanel, "REST Console", false);
+        toolWindow.getContentManager().addContent(restContent);
     }
 
     public static void showLoading(@NotNull Project project, String query) {
@@ -50,6 +57,7 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
             ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID);
             if (toolWindow != null) {
                 toolWindow.show();
+                selectEsqlTab(toolWindow);
                 EsqlResultsPanel panel = panels.get(project);
                 if (panel != null) {
                     panel.showLoading(query);
@@ -63,11 +71,19 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
             ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID);
             if (toolWindow != null) {
                 toolWindow.show();
+                selectEsqlTab(toolWindow);
                 EsqlResultsPanel panel = panels.get(project);
                 if (panel != null) {
                     panel.updateResults(query, result, elapsedMs);
                 }
             }
         });
+    }
+
+    private static void selectEsqlTab(ToolWindow toolWindow) {
+        Content esqlContent = toolWindow.getContentManager().findContent("ES|QL");
+        if (esqlContent != null) {
+            toolWindow.getContentManager().setSelectedContent(esqlContent);
+        }
     }
 }
