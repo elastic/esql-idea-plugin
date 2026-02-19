@@ -20,13 +20,15 @@ package co.elastic.plugin.execution;
 
 import co.elastic.plugin.connection.RestQueryExecutor;
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.ScrollType;
+import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.EditorTextField;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBScrollPane;
@@ -38,10 +40,10 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
-public class RestConsolePanel extends JPanel {
+public class RestConsolePanel extends JPanel implements Disposable {
 
     private final JTextArea requestEditor;
-    private final EditorTextField responseField;
+    private final Editor responseEditor;
     private final JBLabel statusLabel;
     private final JButton executeButton;
 
@@ -57,23 +59,20 @@ public class RestConsolePanel extends JPanel {
     public RestConsolePanel(Project project) {
         super(new BorderLayout());
 
-        responseField = new EditorTextField(
-            EditorFactory.getInstance().createDocument(""),
-            project,
-            FileTypeManager.getInstance().getFileTypeByExtension("json"),
-            true,
-            false
+        Document responseDocument = EditorFactory.getInstance().createDocument("");
+        FileType jsonFileType = FileTypeManager.getInstance().getFileTypeByExtension("json");
+        responseEditor = EditorFactory.getInstance().createEditor(
+            responseDocument, project, jsonFileType, true
         );
-        responseField.addSettingsProvider(editor -> {
-            editor.getSettings().setLineNumbersShown(false);
-            editor.getSettings().setFoldingOutlineShown(true);
-            editor.getSettings().setLineMarkerAreaShown(false);
-            editor.getSettings().setIndentGuidesShown(true);
-            editor.getSettings().setUseSoftWraps(true);
-            editor.getSettings().setGutterIconsShown(false);
-            editor.getSettings().setAdditionalLinesCount(0);
-            editor.getSettings().setAdditionalColumnsCount(0);
-        });
+
+        responseEditor.getSettings().setLineNumbersShown(false);
+        responseEditor.getSettings().setFoldingOutlineShown(true);
+        responseEditor.getSettings().setLineMarkerAreaShown(false);
+        responseEditor.getSettings().setIndentGuidesShown(true);
+        responseEditor.getSettings().setUseSoftWraps(true);
+        responseEditor.getSettings().setGutterIconsShown(false);
+        responseEditor.getSettings().setAdditionalLinesCount(0);
+        responseEditor.getSettings().setAdditionalColumnsCount(0);
 
         statusLabel = new JBLabel("Ready");
         statusLabel.setBorder(JBUI.Borders.empty(4, 8));
@@ -91,7 +90,7 @@ public class RestConsolePanel extends JPanel {
         JButton clearButton = new JButton("Clear Output", AllIcons.Actions.GC);
         clearButton.setToolTipText("Clear response output");
         clearButton.addActionListener(e -> {
-            responseField.setText("");
+            setResponseText("");
             statusLabel.setText("Ready");
             statusLabel.setForeground(JBColor.foreground());
         });
@@ -125,7 +124,7 @@ public class RestConsolePanel extends JPanel {
 
         JPanel responsePanel = new JPanel(new BorderLayout());
         responsePanel.setBorder(BorderFactory.createTitledBorder("Response"));
-        responsePanel.add(responseField, BorderLayout.CENTER);
+        responsePanel.add(responseEditor.getComponent(), BorderLayout.CENTER);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, requestPanel, responsePanel);
         splitPane.setResizeWeight(0.4);
@@ -136,6 +135,24 @@ public class RestConsolePanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             splitPane.setDividerLocation(0.4);
             updateRequestHighlight();
+        });
+    }
+
+    @Override
+    public void dispose() {
+        EditorFactory.getInstance().releaseEditor(responseEditor);
+    }
+
+    private void setResponseText(String text) {
+        ApplicationManager.getApplication().runWriteAction(() ->
+            responseEditor.getDocument().setText(text)
+        );
+    }
+
+    private void scrollResponseToTop() {
+        ApplicationManager.getApplication().runReadAction(() -> {
+            responseEditor.getCaretModel().moveToOffset(0);
+            responseEditor.getScrollingModel().scrollToCaret(ScrollType.MAKE_VISIBLE);
         });
     }
 
@@ -168,7 +185,7 @@ public class RestConsolePanel extends JPanel {
         String text = requestEditor.getText();
         List<RestQueryExecutor.RequestBlock> blocks = RestQueryExecutor.splitRequests(text);
         if (blocks.isEmpty()) {
-            responseField.setText(
+            setResponseText(
                 "No request found.\n\nExpected format:\n  METHOD /path\n  {optional JSON body}\n\n"
                 + "Example:\n  GET /_cat/indices\n\n"
                 + "  POST /my-index/_doc\n  {\n      \"title\": \"Hello\"\n  }");
@@ -192,7 +209,7 @@ public class RestConsolePanel extends JPanel {
 
         RestQueryExecutor.ParsedRequest parsed = RestQueryExecutor.parseRequest(block.content());
         if (parsed == null) {
-            responseField.setText(
+            setResponseText(
                 "Could not parse request.\n\nExpected format:\n  METHOD /path\n  {optional JSON body}");
             statusLabel.setText("Parse error");
             statusLabel.setForeground(JBColor.RED);
@@ -202,7 +219,7 @@ public class RestConsolePanel extends JPanel {
         executeButton.setEnabled(false);
         statusLabel.setText("Executing " + parsed.method() + " " + parsed.path() + "...");
         statusLabel.setForeground(JBColor.foreground());
-        responseField.setText("");
+        setResponseText("");
 
         final RestQueryExecutor.ParsedRequest req = parsed;
         long startTime = System.currentTimeMillis();
@@ -216,17 +233,12 @@ public class RestConsolePanel extends JPanel {
                 executeButton.setEnabled(true);
 
                 if (result.isError()) {
-                    responseField.setText(result.error());
+                    setResponseText(result.error());
                     statusLabel.setText("Error");
                     statusLabel.setForeground(JBColor.RED);
                 } else {
-                    responseField.setText(result.body() != null ? result.body() : "");
-
-                    Editor editor = responseField.getEditor();
-                    if (editor != null) {
-                        editor.getCaretModel().moveToOffset(0);
-                        editor.getScrollingModel().scrollToCaret(ScrollType.MAKE_VISIBLE);
-                    }
+                    setResponseText(result.body() != null ? result.body() : "");
+                    scrollResponseToTop();
 
                     String timeStr = elapsed < 1000
                         ? elapsed + " ms"

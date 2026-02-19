@@ -21,6 +21,7 @@ package co.elastic.plugin.execution;
 import co.elastic.plugin.connection.EsqlQueryResult;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.Content;
@@ -50,6 +51,8 @@ public class EsqlResultsToolWindowFactory implements com.intellij.openapi.wm.Too
 
         Content restContent = contentFactory.createContent(restConsolePanel, "REST Console", false);
         toolWindow.getContentManager().addContent(restContent);
+
+        Disposer.register(toolWindow.getDisposable(), restConsolePanel);
     }
 
     public static void showLoading(@NotNull Project project, String query) {
