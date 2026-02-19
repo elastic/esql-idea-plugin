@@ -27,13 +27,14 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.ScrollType;
-import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.event.CaretEvent;
 import com.intellij.openapi.editor.event.CaretListener;
 import com.intellij.openapi.editor.markup.HighlighterLayer;
 import com.intellij.openapi.editor.markup.HighlighterTargetArea;
 import com.intellij.openapi.editor.markup.RangeHighlighter;
 import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.FileTypeManager;
@@ -101,10 +102,14 @@ public class RestConsolePanel extends JPanel implements Disposable {
             }
         });
 
-        // Response editor: JSON-highlighted read-only editor with Ctrl+F search support
-        Document responseDocument = EditorFactory.getInstance().createDocument("");
+        // Response editor: PSI-backed JSON editor for syntax highlighting, brace matching, and Ctrl+F search
         FileType jsonFileType = FileTypeManager.getInstance().getFileTypeByExtension("json");
-        responseEditor = EditorFactory.getInstance().createEditor(responseDocument, project, jsonFileType, true);
+        LightVirtualFile responseFile = new LightVirtualFile("response.json", jsonFileType, "");
+        Document responseDocument = FileDocumentManager.getInstance().getDocument(responseFile);
+        if (responseDocument == null) {
+            responseDocument = EditorFactory.getInstance().createDocument("");
+        }
+        responseEditor = EditorFactory.getInstance().createEditor(responseDocument, project, responseFile, true);
 
         responseEditor.getSettings().setLineNumbersShown(false);
         responseEditor.getSettings().setFoldingOutlineShown(true);
@@ -114,6 +119,8 @@ public class RestConsolePanel extends JPanel implements Disposable {
         responseEditor.getSettings().setGutterIconsShown(false);
         responseEditor.getSettings().setAdditionalLinesCount(0);
         responseEditor.getSettings().setAdditionalColumnsCount(0);
+
+        applyJqColorScheme(responseEditor);
 
         statusLabel = new JBLabel("Ready");
         statusLabel.setBorder(JBUI.Borders.empty(4, 8));
@@ -179,6 +186,23 @@ public class RestConsolePanel extends JPanel implements Disposable {
             responseEditor.getCaretModel().moveToOffset(0);
             responseEditor.getScrollingModel().scrollToCaret(ScrollType.MAKE_VISIBLE);
         });
+    }
+
+    private static void applyJqColorScheme(Editor editor) {
+        EditorColorsScheme scheme = editor.getColorsScheme();
+
+        TextAttributes keyAttrs = new TextAttributes();
+        keyAttrs.setForegroundColor(new JBColor(
+            new Color(0x04, 0x51, 0xA5), new Color(0x56, 0x9C, 0xD6)
+        ));
+        keyAttrs.setFontType(Font.BOLD);
+        scheme.setAttributes(TextAttributesKey.createTextAttributesKey("JSON.PROPERTY_KEY"), keyAttrs);
+
+        TextAttributes stringAttrs = new TextAttributes();
+        stringAttrs.setForegroundColor(new JBColor(
+            new Color(0x09, 0x86, 0x58), new Color(0x6A, 0x99, 0x55)
+        ));
+        scheme.setAttributes(TextAttributesKey.createTextAttributesKey("JSON.STRING"), stringAttrs);
     }
 
     private void updateRequestHighlight() {
