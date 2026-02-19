@@ -22,6 +22,9 @@ import co.elastic.plugin.connection.RestQueryExecutor;
 import co.elastic.plugin.rest.ElasticsearchRestFileType;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.CustomShortcutSet;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -46,7 +49,6 @@ import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
@@ -91,16 +93,17 @@ public class RestConsolePanel extends JPanel implements Disposable {
             }
         });
 
-        requestEditor.getContentComponent().addKeyListener(new KeyAdapter() {
+        int cmdCtrl = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        AnAction executeAction = new AnAction() {
             @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER
-                    && (e.getModifiersEx() & Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()) != 0) {
-                    executeRequest();
-                    e.consume();
-                }
+            public void actionPerformed(@org.jetbrains.annotations.NotNull AnActionEvent e) {
+                executeRequest();
             }
-        });
+        };
+        executeAction.registerCustomShortcutSet(
+            new CustomShortcutSet(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, cmdCtrl | KeyEvent.SHIFT_DOWN_MASK)),
+            requestEditor.getComponent(), this
+        );
 
         // Response editor: PSI-backed JSON editor for syntax highlighting, brace matching, and Ctrl+F search
         FileType jsonFileType = FileTypeManager.getInstance().getFileTypeByExtension("json");
@@ -131,7 +134,7 @@ public class RestConsolePanel extends JPanel implements Disposable {
         executeToolbar.setBorder(JBUI.Borders.empty(2, 4));
 
         executeButton = new JButton("Execute", AllIcons.Actions.Execute);
-        executeButton.setToolTipText("Execute request at cursor (Ctrl+Enter)");
+        executeButton.setToolTipText("Execute request at cursor (Ctrl+Shift+Enter / Cmd+Shift+Enter)");
         executeButton.addActionListener(e -> executeRequest());
         executeToolbar.add(executeButton);
 
