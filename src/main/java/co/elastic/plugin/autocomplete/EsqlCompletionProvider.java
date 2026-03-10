@@ -105,8 +105,10 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                         }), priority));
                     break;
                 default:
-                    // If the last token is not a space (spaces are in a hidden channel), use it on matching to replace the current word
-                    var matcher = lastToken.getChannel() == EsqlBaseLexer.DEFAULT_TOKEN_CHANNEL ? new PermissivePrefixMatcher(lastToken.getText()) : new PermissivePrefixMatcher();
+                    // If the last token is not a space (spaces are in a hidden channel) or a parenthesis,
+                    // use it on matching to replace the current word
+                    var matcher = isSpaceOrParenthesis(lastToken) ? new PermissivePrefixMatcher() : new PermissivePrefixMatcher(lastToken.getText());
+
                     result.withPrefixMatcher(matcher).addElement(PrioritizedLookupElement.withPriority(
                         LookupElementBuilder.create(c.text()),
                         priority)
@@ -114,6 +116,11 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
             }
         }
+    }
+
+    private static boolean isSpaceOrParenthesis(Token lastToken) {
+        return lastToken.getChannel() != EsqlBaseLexer.DEFAULT_TOKEN_CHANNEL ||
+               (lastToken.getType() == EsqlBaseLexer.LP || lastToken.getType() == EsqlBaseLexer.RP);
     }
 
     static Set<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
