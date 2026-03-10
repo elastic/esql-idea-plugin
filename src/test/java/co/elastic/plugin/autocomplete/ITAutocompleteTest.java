@@ -31,7 +31,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-public class EsqlAutocompleteTest extends BasePlatformTestCase {
+public class ITAutocompleteTest extends BasePlatformTestCase {
 
     @Override
     protected void setUp() throws Exception {
@@ -43,7 +43,6 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         return false;
     }
 
-    @Test
     public void testCompletionsJava() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset
@@ -64,10 +63,20 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         WriteCommandAction.runWriteCommandAction(getProject(), () ->
             myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
 
-        // should autocomplete to FROM
-        // completeBasic returns null if it completed the only available result
         myFixture.type("FR");
-        Assert.assertNull(myFixture.completeBasic());
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
 
         myFixture.checkResult("""
             package co.elastic.plugin;
@@ -153,7 +162,7 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(17, elements.length);
+        Assert.assertEquals(21, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -181,7 +190,6 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
 
     }
 
-    @Test
     public void testCompletionsKotlin() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset
@@ -204,10 +212,20 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         WriteCommandAction.runWriteCommandAction(getProject(), () ->
             myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
 
-        // should autocomplete to FROM
-        // completeBasic returns null if it completed the only available result
         myFixture.type("FR");
-        Assert.assertNull(myFixture.completeBasic());
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
 
         myFixture.checkResult("""
             package main.kotlin
@@ -290,7 +308,7 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(17, elements.length);
+        Assert.assertEquals(21, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -315,5 +333,64 @@ public class EsqlAutocompleteTest extends BasePlatformTestCase {
             }
             """);
 
+    }
+
+    public void testCaretInTheMiddleOfASentenceJava() {
+        // <caret> is a special symbol, allowing to move the cursor and
+        // type at the desired offset
+        myFixture.configureByText("TestJava.java", """
+            package co.elastic.plugin;
+            
+            public class TestJava {
+                public static void main(String[] args) {
+                // ES|QL
+                String a = ""\"
+                        FROM <caret> | EVAL x = 3
+                        ""\";
+                    }
+            }
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
+    }
+
+    public void testCaretInTheMiddleOfASentenceKotlin() {
+        // <caret> is a special symbol, allowing to move the cursor and
+        // type at the desired offset
+        // EditorTestUtil.CARET_TAG
+        myFixture.configureByText(
+            "TestKotlin.kt", """
+                package main.kotlin
+                
+                fun main() {
+                
+                    // ES|QL
+                    val a = ""\"
+                            FROM <caret> | EVAL x = 3
+                            ""\"
+                }
+                """
+        );
+
+        // making sure the test env recognizes kotlin files
+        Assert.assertTrue(myFixture.getFile().getLanguage().is(Language.findLanguageByID("kotlin")));
+
+        WriteCommandAction.runWriteCommandAction(
+            getProject(),
+            () -> myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset())
+        );
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
     }
 }

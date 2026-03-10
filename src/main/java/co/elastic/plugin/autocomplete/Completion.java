@@ -16,12 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package co.elastic.plugin.connection;
+package co.elastic.plugin.autocomplete;
 
-import java.util.List;
-
-public interface EsqlPluginQueryManager {
-    List<String> getIndices();
-    List<String> getFields(String indexName);
-    void startQueryThreadPool();
+public record Completion(String text, Kind kind) {
+    public enum Kind {
+        KEYWORD,
+        FUNCTION,
+        PIPE,
+        PLACEHOLDER,
+        METADATA,
+        NAME,
+        FIELD,
+    }
 }
