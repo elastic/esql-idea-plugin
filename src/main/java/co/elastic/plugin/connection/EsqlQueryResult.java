@@ -16,30 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package co.elastic.plugin;
+package co.elastic.plugin.connection;
 
-import com.intellij.openapi.editor.markup.GutterIconRenderer;
-import com.intellij.openapi.util.IconLoader;
-import org.jetbrains.annotations.NotNull;
+import java.util.List;
 
-import javax.swing.*;
+public record EsqlQueryResult(
+    List<Column> columns,
+    List<List<Object>> values,
+    String error
+) {
+    public record Column(String name, String type) {}
 
-public final class EsqlIcon extends GutterIconRenderer {
-
-    public static final Icon ESQL_ICON = IconLoader.getIcon("/META-INF/elasticsearch.svg", EsqlIcon.class);
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof EsqlIcon;
+    public static EsqlQueryResult error(String errorMessage) {
+        return new EsqlQueryResult(List.of(), List.of(), errorMessage);
     }
 
-    @Override
-    public int hashCode() {
-        return EsqlIcon.class.hashCode();
-    }
-
-    @Override
-    public @NotNull Icon getIcon() {
-        return ESQL_ICON;
+    public boolean isError() {
+        return error != null && !error.isEmpty();
     }
 }

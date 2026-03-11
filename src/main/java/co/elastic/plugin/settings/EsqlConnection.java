@@ -16,30 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package co.elastic.plugin;
+package co.elastic.plugin.settings;
 
-import com.intellij.openapi.editor.markup.GutterIconRenderer;
-import com.intellij.openapi.util.IconLoader;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.util.xmlb.annotations.Tag;
 
-import javax.swing.*;
+@Tag("connection")
+public class EsqlConnection {
+    public String name = "";
+    public String serverUrl = "";
+    public String apiKey = "";
+    public int refreshInterval = 60;
 
-public final class EsqlIcon extends GutterIconRenderer {
+    public EsqlConnection() {}
 
-    public static final Icon ESQL_ICON = IconLoader.getIcon("/META-INF/elasticsearch.svg", EsqlIcon.class);
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof EsqlIcon;
+    public EsqlConnection(String name, String serverUrl, String apiKey, int refreshInterval) {
+        this.name = name;
+        this.serverUrl = serverUrl;
+        this.apiKey = apiKey;
+        this.refreshInterval = refreshInterval;
     }
 
-    @Override
-    public int hashCode() {
-        return EsqlIcon.class.hashCode();
-    }
-
-    @Override
-    public @NotNull Icon getIcon() {
-        return ESQL_ICON;
+    public EsqlConnection copy() {
+        return new EsqlConnection(name, serverUrl, apiKey, refreshInterval);
     }
 }

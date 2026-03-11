@@ -93,16 +93,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
 
             switch (c.kind()) {
                 case METADATA, NAME, FIELD:
-                    LookupElement lookup = LookupElementBuilder.create(lastToken.getText());
-                    result.withPrefixMatcher(new PermissivePrefixMatcher())
-                        .addElement(PrioritizedLookupElement
-                            .withPriority(LookupElementDecorator.withRenderer(lookup, new LookupElementRenderer<>() {
-                                public void renderElement(LookupElementDecorator<LookupElement> element,
-                                    LookupElementPresentation presentation) {
-                                    element.getDelegate().renderElement(presentation);
-                                    presentation.setItemTextForeground(JBColor.YELLOW);
-                                }
-                        }), priority));
+                    insertLookupWithColor(result,c.text(),priority);
                     break;
                 default:
                     // If the last token is not a space (spaces are in a hidden channel) or a parenthesis,
@@ -129,6 +120,19 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         completions.addAll(computeTokenCompletions(parserInfo));
         completions.addAll(computeSchemaDependentCompletions(parserInfo, queryManager));
         return completions;
+    }
+
+    private static void insertLookupWithColor(@NotNull CompletionResultSet result, String token, int priority) {
+        LookupElement lookup = LookupElementBuilder.create(token);
+        result.withPrefixMatcher(new PermissivePrefixMatcher())
+            .addElement(PrioritizedLookupElement
+                .withPriority(LookupElementDecorator.withRenderer(lookup, new LookupElementRenderer<>() {
+                    public void renderElement(LookupElementDecorator<LookupElement> element,
+                                              LookupElementPresentation presentation) {
+                        element.getDelegate().renderElement(presentation);
+                        presentation.setItemTextForeground(JBColor.YELLOW);
+                    }
+                }), priority));
     }
 
     private static Set<Completion> computeTokenCompletions(Parser.ParserInfo parserInfo) {
