@@ -18,6 +18,8 @@
  */
 package co.elastic.plugin.settings;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.ValidationInfo;
@@ -25,17 +27,8 @@ import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.Nullable;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import javax.swing.*;
 import java.awt.*;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,11 +43,8 @@ public class EsqlConnectionDialog extends DialogWrapper {
     private final JLabel testResultLabel = new JLabel(" ");
     private final Map<String, Integer> refreshRateMap = new LinkedHashMap<>();
 
-    private final @Nullable EsqlConnection existing;
-
     public EsqlConnectionDialog(@Nullable EsqlConnection existing) {
         super(true);
-        this.existing = existing;
         setTitle(existing == null ? "Add Connection" : "Edit Connection");
 
         refreshRateMap.put("10 seconds", 10);
@@ -97,7 +87,7 @@ public class EsqlConnectionDialog extends DialogWrapper {
             .addLabeledComponent("Refresh rate:", refreshRateField)
             .addComponent(testPanel)
             .getPanel();
-        
+
         panel.setBorder(JBUI.Borders.empty(10));
         return panel;
     }
@@ -143,18 +133,14 @@ public class EsqlConnectionDialog extends DialogWrapper {
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
             protected String doInBackground() {
-                try {
-                    HttpClient httpClient = createHttpClient(serverUrl);
-                    HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(serverUrl))
-                        .header("Authorization", "ApiKey " + apiKey)
-                        .GET()
-                        .build();
-                    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                    if (response.statusCode() < 400) {
-                        return "OK:" + response.statusCode();
-                    }
-                    return "ERR:HTTP " + response.statusCode();
+                try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
+                    .host(serverUrl)
+                    .apiKey(apiKey)
+                )) {
+                    client.ping();
+                    return "OK";
+                } catch (ElasticsearchException e) {
+                    return "ERR:HTTP" + e.response().status();
                 } catch (Exception e) {
                     return "ERR:" + e.getMessage();
                 }
@@ -178,21 +164,5 @@ public class EsqlConnectionDialog extends DialogWrapper {
             }
         };
         worker.execute();
-    }
-
-    private static HttpClient createHttpClient(String serverUrl) {
-        try {
-            if (serverUrl.startsWith("https://")) {
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, new TrustManager[]{new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                }}, new SecureRandom());
-                return HttpClient.newBuilder().sslContext(sslContext).build();
-            }
-        } catch (Exception ignored) {
-        }
-        return HttpClient.newHttpClient();
     }
 }
