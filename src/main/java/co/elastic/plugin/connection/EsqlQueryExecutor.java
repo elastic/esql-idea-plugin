@@ -18,22 +18,21 @@
  */
 package co.elastic.plugin.connection;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch.esql.EsqlFormat;
+import co.elastic.clients.elasticsearch.esql.QueryRequest;
+import co.elastic.clients.transport.endpoints.BinaryResponse;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellij.openapi.application.ApplicationManager;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class EsqlQueryExecutor {
 
@@ -43,7 +42,9 @@ public class EsqlQueryExecutor {
         EsqlPluginQueryManager queryManager = ApplicationManager.getApplication()
             .getService(EsqlPluginQueryManager.class);
         if (!queryManager.isActiveConnectionConnected()) {
-            return EsqlQueryResult.error("Not connected. Click the connect button in the Elasticsearch panel.");
+            return EsqlQueryResult.error("Not connected. Click the connect button in the " +
+                                         "Elasticsearch " +
+                                         "panel.");
         }
 
         EsqlPluginSettings settings = ApplicationManager.getApplication()
@@ -53,55 +54,32 @@ public class EsqlQueryExecutor {
         String apiKey = settings.getApiKey();
 
         if (serverUrl == null || serverUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            return EsqlQueryResult.error("No connection configured. Add one in the the Elasticsearch panel.");
+            return EsqlQueryResult.error("No connection configured. Add one in the the " +
+                                         "Elasticsearch panel.");
         }
 
-        try {
-            String url = serverUrl.endsWith("/")
-                ? serverUrl + "_query?format=json"
-                : serverUrl + "/_query?format=json";
+        try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
+            .host(serverUrl)
+            .apiKey(apiKey)
+        )) {
 
-            String requestBody = OBJECT_MAPPER.writeValueAsString(
-                OBJECT_MAPPER.createObjectNode().put("query", query)
-            );
+            BinaryResponse response = client.esql()
+                .query(QueryRequest.of(q -> q.query(query).format(EsqlFormat.Json)));
 
-            HttpClient httpClient = createHttpClient(serverUrl);
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("Authorization", "ApiKey " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
+            String responseBody = new BufferedReader(new InputStreamReader(response.content()))
+                .lines().collect(Collectors.joining("\n"));
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return parseSuccessResponse(responseBody);
 
-            if (response.statusCode() >= 400) {
-                return parseErrorResponse(response.body(), response.statusCode());
-            }
-
-            return parseSuccessResponse(response.body());
-
-        } catch (Exception e) {
+        }
+        catch (ElasticsearchException e) {
+            return EsqlQueryResult.error("[" + e.response().status() + "] " + e.getMessage());
+        }
+        catch (Exception e) {
             return EsqlQueryResult.error("Request failed: " + e.getMessage());
         }
     }
 
-    private static HttpClient createHttpClient(String serverUrl) {
-        try {
-            if (serverUrl.startsWith("https://")) {
-                SSLContext sslContext = SSLContext.getInstance("TLS");
-                sslContext.init(null, new TrustManager[]{new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                }}, new SecureRandom());
-                return HttpClient.newBuilder().sslContext(sslContext).build();
-            }
-        } catch (Exception ignored) {
-        }
-        return HttpClient.newHttpClient();
-    }
 
     private static EsqlQueryResult parseSuccessResponse(String responseBody) {
         try {
@@ -145,19 +123,5 @@ public class EsqlQueryExecutor {
         } catch (Exception e) {
             return EsqlQueryResult.error("Failed to parse response: " + e.getMessage());
         }
-    }
-
-    private static EsqlQueryResult parseErrorResponse(String responseBody, int statusCode) {
-        try {
-            JsonNode root = OBJECT_MAPPER.readTree(responseBody);
-            JsonNode error = root.get("error");
-            if (error != null) {
-                String reason = error.has("reason") ? error.get("reason").asText() : error.asText();
-                String type = error.has("type") ? error.get("type").asText() : "";
-                return EsqlQueryResult.error("[" + statusCode + "] " + type + ": " + reason);
-            }
-        } catch (Exception ignored) {
-        }
-        return EsqlQueryResult.error("[" + statusCode + "] " + responseBody);
     }
 }
