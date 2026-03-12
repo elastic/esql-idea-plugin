@@ -35,7 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public final class EsqlPluginQueryManager {
+public final class EsqlPluginQueryManager implements EsqlSchemaProvider {
 
     private static class ConnectionState {
         ScheduledFuture<?> task;

@@ -21,7 +21,9 @@ package co.elastic.plugin.autocomplete;
 import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
-import co.elastic.plugin.connection.EsqlPluginQueryManager;
+import co.elastic.plugin.connection.EsqlSchemaProvider;
+
+import org.antlr.v4.runtime.Token;
 
 import java.util.*;
 
@@ -38,32 +40,50 @@ public record Completion(String text, Kind kind) {
         FIELD,
     }
 
-    static Set<Completion> computeCompletions(String text, EsqlPluginQueryManager queryManager) {
+    static Set<Completion> computeCompletions(String text, EsqlSchemaProvider queryManager) {
         var parserInfo = Parser.parse(text);
         return computeCompletions(parserInfo, queryManager);
     }
 
-    static Set<Completion> computeCompletions(Parser.ParserInfo parserInfo, EsqlPluginQueryManager queryManager) {
+    static Set<Completion> computeCompletions(Parser.ParserInfo parserInfo, EsqlSchemaProvider queryManager) {
+        var tokens = parserInfo.tokens();
+        var caretToken = tokens.isEmpty() ? null : tokens.getLast();
+        int caretTokenIndex = caretToken != null ? caretToken.getTokenIndex() : 0;
+        boolean caretPastLastToken = caretToken != null && caretToken.getChannel() != Token.DEFAULT_CHANNEL;
         var candidates = completionCandidates(parserInfo);
         Set<Completion> completions = new HashSet<>();
-        completions.addAll(computeTokenCompletions(candidates));
-        completions.addAll(computeSchemaDependentCompletions(parserInfo, candidates, queryManager));
+        completions.addAll(computeTokenCompletions(candidates, caretTokenIndex, caretPastLastToken));
+        completions.addAll(computeSchemaDependentCompletions(parserInfo, candidates, queryManager,
+            caretTokenIndex, caretPastLastToken));
         return completions;
     }
 
-    private static Set<Completion> computeTokenCompletions(CandidatesCollection candidates) {
+    /**
+     * Checks whether a rule candidate must actually be considered, meaning the rule index is after the
+     * current position. This avoids situations where a rule is applied multiple times consecutively.
+     */
+    private static boolean isRuleCandidateAtCaret(CandidatesCollection candidates, int ruleIndex,
+                                                   int caretTokenIndex, boolean caretPastLastToken) {
+        var rule = candidates.rules.get(ruleIndex);
+        if (rule == null) return false;
+        if (!caretPastLastToken) return true;
+        return rule.startTokenIndex >= caretTokenIndex;
+    }
+
+    private static Set<Completion> computeTokenCompletions(CandidatesCollection candidates,
+                                                            int caretTokenIndex, boolean caretPastLastToken) {
         Set<Completion> completions = new HashSet<>();
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_indexPattern)) {
+        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex, caretPastLastToken)) {
             completions.add(new Completion("{string}", Kind.PLACEHOLDER));
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName) || candidates.rules.containsKey(EsqlBaseParser.RULE_fieldNamePattern)) {
+        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, caretPastLastToken)
+            || isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex, caretPastLastToken)) {
             completions.add(new Completion("{var}", Kind.PLACEHOLDER));
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_metadataSource)) {
-            completions.add(new Completion("METADATA", Kind.KEYWORD));
+        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_metadataSource, caretTokenIndex, caretPastLastToken)) {
             for (String opt : METADATA_OPTIONS) {
                 completions.add(new Completion(opt, Kind.METADATA));
             }
@@ -121,19 +141,22 @@ public record Completion(String text, Kind kind) {
 
     private static Set<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
                                                                       CandidatesCollection candidates,
-                                                                      EsqlPluginQueryManager queryManager) {
+                                                                      EsqlSchemaProvider queryManager,
+                                                                      int caretTokenIndex,
+                                                                      boolean caretPastLastToken) {
         Set<Completion> completions = new HashSet<>();
         if (queryManager == null) {
             return completions;
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_indexPattern)) {
+        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex, caretPastLastToken)) {
             for (String index : queryManager.getIndices()) {
                 completions.add(new Completion(index, Kind.NAME));
             }
         }
 
-        if (candidates.rules.containsKey(EsqlBaseParser.RULE_fieldName) || candidates.rules.containsKey(EsqlBaseParser.RULE_fieldNamePattern) ) {
+        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, caretPastLastToken)
+            || isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex, caretPastLastToken)) {
             var queriedIndexes = parserInfo.queriedIndexes();
             if (!queriedIndexes.isEmpty()) {
                 String index = queriedIndexes.getLast();

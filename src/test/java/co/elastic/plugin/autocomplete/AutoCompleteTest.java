@@ -18,7 +18,7 @@
  */
 package co.elastic.plugin.autocomplete;
 
-import co.elastic.plugin.connection.EsqlPluginQueryManager;
+import co.elastic.plugin.connection.EsqlSchemaProvider;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,7 +32,7 @@ import static co.elastic.plugin.CommonUtils.METADATA_OPTIONS;
 
 public class AutoCompleteTest {
 
-    private static final EsqlPluginQueryManager STUB_QUERY_MANAGER = new EsqlPluginQueryManager() {
+    private static final EsqlSchemaProvider STUB_QUERY_MANAGER = new EsqlSchemaProvider() {
         @Override
         public List<String> getIndices() {
             return List.of("my-index", "logs-2024");
@@ -44,10 +44,6 @@ public class AutoCompleteTest {
                 return List.of("field1", "field2", "@timestamp");
             }
             return List.of();
-        }
-
-        @Override
-        public void startQueryThreadPool() {
         }
     };
 
@@ -182,6 +178,20 @@ public class AutoCompleteTest {
         Assert.assertFalse(
             completions.contains(new Completion("_source", Completion.Kind.METADATA))
         );
+        Assert.assertFalse(
+            "Should not suggest index patterns after a completed index",
+            completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER))
+        );
+    }
+
+    @Test
+    public void testNoMetadataKeywordAfterMetadata() {
+        var completions = Completion.computeCompletions("FROM index METADATA ", null);
+        Assert.assertFalse(
+            "Should not re-suggest METADATA keyword inside metadata clause",
+            completions.contains(new Completion("METADATA", Completion.Kind.KEYWORD))
+        );
+        Assert.assertTrue(completions.contains(new Completion("_id", Completion.Kind.METADATA)));
     }
 
     @Test
