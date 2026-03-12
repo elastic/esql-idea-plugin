@@ -20,6 +20,7 @@ package co.elastic.plugin.autocomplete;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
+import co.elastic.grammar.EsqlBaseParserBaseListener;
 import co.elastic.grammar.EsqlConfig;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -30,17 +31,7 @@ import java.util.List;
 
 
 public class Parser {
-    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, Token lastNonSpacetoken) {}
-
-    private static Token getLastNonSpaceToken(List<Token> tokens) {
-        for (int i = tokens.size() - 1; i >= 0; i--) {
-            Token t = tokens.get(i);
-            if (t.getChannel() == Token.DEFAULT_CHANNEL) {
-                return t;
-            }
-        }
-        return null;
-    }
+    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, List<String> queriedIndexes) {}
 
     public static Parser.ParserInfo parse(String query) {
         EsqlConfig config = new EsqlConfig(false);
@@ -50,16 +41,26 @@ public class Parser {
 
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
 
-        // Fill the token stream (i.e. tokenize the input)
-        tokenStream.fill();
-        var tokens = new ArrayList<>(tokenStream.getTokens());
-        // Remove EOF
-        tokens.removeLast();
-        var lastToken = getLastNonSpaceToken(tokens);
+        List<String> queriedIndexes = new ArrayList<>();
         EsqlBaseParser parser = new EsqlBaseParser(tokenStream);
         parser.removeErrorListeners();
         parser.setEsqlConfig(config);
+        parser.addParseListener(new EsqlBaseParserBaseListener() {
+            @Override
+            public void exitIndexPattern(EsqlBaseParser.IndexPatternContext ctx) {
+                queriedIndexes.add(ctx.getText());
+            }
+        });
+        parser.singleStatement();
 
-        return new ParserInfo(parser, tokens, lastToken);
+        // Make a copy of input tokens array because we are going to remove the EOF
+        var tokens = new ArrayList<>(tokenStream.getTokens());
+        // Remove EOF
+        tokens.removeLast();
+
+        // Reset the parser so CodeCompletionCore can use the ATN from the start
+        parser.reset();
+
+        return new ParserInfo(parser, tokens, queriedIndexes);
     }
 }

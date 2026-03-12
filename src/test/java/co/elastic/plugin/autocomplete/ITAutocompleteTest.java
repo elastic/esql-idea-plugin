@@ -124,12 +124,13 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
             }
             """);
 
-        // typing another space, expecting 5 elements, including a pipe, which we'll apply
+        // typing another space; after completed index pattern, no {string} suggestion
+        // expecting 3 elements, including a pipe, which we'll apply
         myFixture.type(" ");
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(5, elements.length);
+        Assert.assertEquals(3, elements.length);
         LookupElement pipe = Arrays.stream(elements)
             .filter(le -> le
                 .getLookupString()
@@ -271,12 +272,13 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
             }
             """);
 
-        // typing another space, expecting 5 elements, including a pipe, which we'll apply
+        // typing another space; after completed index pattern, no {string} suggestion
+        // expecting 4 elements, including a pipe, which we'll apply
         myFixture.type(" ");
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(5, elements.length);
+        Assert.assertEquals(3, elements.length);
         LookupElement pipe = Arrays.stream(elements)
             .filter(le -> le
                 .getLookupString()
