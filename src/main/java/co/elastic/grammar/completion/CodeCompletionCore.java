@@ -25,33 +25,55 @@
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Copied from https://github.com/mike-lischke/antlr4-c3/blob/be91f3f18f0e4a8fed6bba507af26c671315b87a
+ * /ports/java/src/main/java/com/vmware/antlr4c3/CodeCompletionCore.java
  */
 package co.elastic.grammar.completion;
 
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.atn.*;
+import org.antlr.v4.runtime.Parser;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.TokenStream;
+import org.antlr.v4.runtime.Vocabulary;
+import org.antlr.v4.runtime.atn.ATN;
+import org.antlr.v4.runtime.atn.ATNState;
+import org.antlr.v4.runtime.atn.PrecedencePredicateTransition;
+import org.antlr.v4.runtime.atn.PredicateTransition;
+import org.antlr.v4.runtime.atn.RuleStartState;
+import org.antlr.v4.runtime.atn.RuleStopState;
+import org.antlr.v4.runtime.atn.RuleTransition;
+import org.antlr.v4.runtime.atn.Transition;
 import org.antlr.v4.runtime.misc.IntervalSet;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class CodeCompletionCore {
     private static Map<String, Map<Integer, FollowSetsHolder>> followSetsByATN = new HashMap<>();
 
     private static String[] atnStateTypeMap = {
-            "invalid",
-            "basic",
-            "rule start",
-            "block start",
-            "plus block start",
-            "star block start",
-            "token start",
-            "rule stop",
-            "block end",
-            "star loop back",
-            "star loop entry",
-            "plus loop back",
-            "loop end"
+        "invalid",
+        "basic",
+        "rule start",
+        "block start",
+        "plus block start",
+        "star block start",
+        "token start",
+        "rule stop",
+        "block end",
+        "star loop back",
+        "star loop entry",
+        "plus loop back",
+        "loop end"
     };
 
     // Debugging options
@@ -123,8 +145,8 @@ public class CodeCompletionCore {
             System.out.println("\n\nCollected rules:\n");
             for (Map.Entry<Integer, CandidateRule> entry : candidates.rules.entrySet()) {
                 String path = entry.getValue().ruleList.stream()
-                        .map(ruleIndex -> ruleNames[ruleIndex])
-                        .collect(Collectors.joining(" "));
+                    .map(ruleIndex -> ruleNames[ruleIndex])
+                    .collect(Collectors.joining(" "));
                 System.out.println(ruleNames[entry.getKey()] + ", path: " + path);
             }
 
@@ -179,8 +201,8 @@ public class CodeCompletionCore {
         if (preferredRules.contains(ruleIndex)) {
             int startTokenIndex = ruleWithStartToken.startTokenIndex;
             List<Integer> path = ruleWithStartTokenList.subList(0, i).stream()
-                    .map(r -> r.ruleIndex)
-                    .collect(Collectors.toList());
+                .map(r -> r.ruleIndex)
+                .collect(Collectors.toList());
 
             boolean addNew = true;
             for (Map.Entry<Integer, CandidateRule> entry : candidates.rules.entrySet()) {
@@ -256,7 +278,7 @@ public class CodeCompletionCore {
     }
 
     private boolean collectFollowSets(ATNState s, ATNState stopState, List<FollowSetWithPath> followSets,
-            Stack<ATNState> stateStack, Stack<Integer> ruleStack) {
+                                      Stack<ATNState> stateStack, Stack<Integer> ruleStack) {
         if (stateStack.contains(s)) {
             return true;
         }
@@ -277,24 +299,24 @@ public class CodeCompletionCore {
 
                 ruleStack.push(ruleTransition.target.ruleIndex);
                 boolean ruleFollowSetsIsExhaustive = collectFollowSets(
-                        transition.target, stopState, followSets, stateStack, ruleStack);
+                    transition.target, stopState, followSets, stateStack, ruleStack);
                 ruleStack.pop();
 
                 if (!ruleFollowSetsIsExhaustive) {
                     boolean nextStateFollowSetsIsExhaustive = collectFollowSets(
-                            ruleTransition.followState, stopState, followSets, stateStack, ruleStack);
+                        ruleTransition.followState, stopState, followSets, stateStack, ruleStack);
                     isExhaustive &= nextStateFollowSetsIsExhaustive;
                 }
 
             } else if (transition.getSerializationType() == Transition.PREDICATE) {
                 if (checkPredicate((PredicateTransition) transition)) {
                     boolean nextStateFollowSetsIsExhaustive = collectFollowSets(
-                            transition.target, stopState, followSets, stateStack, ruleStack);
+                        transition.target, stopState, followSets, stateStack, ruleStack);
                     isExhaustive &= nextStateFollowSetsIsExhaustive;
                 }
             } else if (transition.isEpsilon()) {
                 boolean nextStateFollowSetsIsExhaustive = collectFollowSets(
-                        transition.target, stopState, followSets, stateStack, ruleStack);
+                    transition.target, stopState, followSets, stateStack, ruleStack);
                 isExhaustive &= nextStateFollowSetsIsExhaustive;
             } else if (transition.getSerializationType() == Transition.WILDCARD) {
                 FollowSetWithPath set = new FollowSetWithPath();
@@ -321,9 +343,9 @@ public class CodeCompletionCore {
     }
 
     private Set<Integer> processRule(RuleStartState startState, int tokenListIndex,
-            List<RuleWithStartToken> callStack, int precedence, int indentation) {
+                                     List<RuleWithStartToken> callStack, int precedence, int indentation) {
         Map<Integer, Set<Integer>> positionMap = shortcutMap.computeIfAbsent(
-                startState.ruleIndex, k -> new HashMap<>());
+            startState.ruleIndex, k -> new HashMap<>());
 
         if (positionMap.containsKey(tokenListIndex)) {
             if (showDebugOutput) {
@@ -335,7 +357,7 @@ public class CodeCompletionCore {
         Set<Integer> result = new HashSet<>();
 
         Map<Integer, FollowSetsHolder> setsPerState = followSetsByATN.computeIfAbsent(
-                parser.getClass().getName(), k -> new HashMap<>());
+            parser.getClass().getName(), k -> new HashMap<>());
 
         FollowSetsHolder followSets = setsPerState.get(startState.stateNumber);
         if (followSets == null) {
@@ -354,8 +376,8 @@ public class CodeCompletionCore {
                 for (FollowSetWithPath set : followSets.sets) {
                     List<RuleWithStartToken> fullPath = new ArrayList<>(callStack);
                     List<RuleWithStartToken> followSetPath = set.path.stream()
-                            .map(ruleIndex -> new RuleWithStartToken(startTokenIndex, ruleIndex))
-                            .collect(Collectors.toList());
+                        .map(ruleIndex -> new RuleWithStartToken(startTokenIndex, ruleIndex))
+                        .collect(Collectors.toList());
                     fullPath.addAll(followSetPath);
 
                     if (!translateStackToRuleIndex(fullPath)) {
@@ -407,7 +429,7 @@ public class CodeCompletionCore {
 
             if (showDebugOutput) {
                 printDescription(indentation, currentEntry.state,
-                        generateBaseDescription(currentEntry.state), currentEntry.tokenListIndex);
+                    generateBaseDescription(currentEntry.state), currentEntry.tokenListIndex);
                 if (showRuleStack) {
                     printRuleState(callStack);
                 }
@@ -423,7 +445,8 @@ public class CodeCompletionCore {
                     case Transition.RULE: {
                         RuleTransition ruleTransition = (RuleTransition) transition;
                         Set<Integer> endStatus = processRule((RuleStartState) transition.target,
-                                currentEntry.tokenListIndex, callStack, ruleTransition.precedence, indentation + 1);
+                            currentEntry.tokenListIndex, callStack, ruleTransition.precedence,
+                            indentation + 1);
                         for (int position : endStatus) {
                             statePipeline.push(new PipelineEntry(ruleTransition.followState, position));
                         }
@@ -432,15 +455,18 @@ public class CodeCompletionCore {
 
                     case Transition.PREDICATE: {
                         if (checkPredicate((PredicateTransition) transition)) {
-                            statePipeline.push(new PipelineEntry(transition.target, currentEntry.tokenListIndex));
+                            statePipeline.push(new PipelineEntry(transition.target,
+                                currentEntry.tokenListIndex));
                         }
                         break;
                     }
 
                     case Transition.PRECEDENCE: {
-                        PrecedencePredicateTransition predTransition = (PrecedencePredicateTransition) transition;
+                        PrecedencePredicateTransition predTransition =
+                            (PrecedencePredicateTransition) transition;
                         if (predTransition.precedence >= precedenceStack.get(precedenceStack.size() - 1)) {
-                            statePipeline.push(new PipelineEntry(transition.target, currentEntry.tokenListIndex));
+                            statePipeline.push(new PipelineEntry(transition.target,
+                                currentEntry.tokenListIndex));
                         }
                         break;
                     }
@@ -448,21 +474,24 @@ public class CodeCompletionCore {
                     case Transition.WILDCARD: {
                         if (atCaret) {
                             if (!translateStackToRuleIndex(callStack)) {
-                                for (int token : IntervalSet.of(Token.MIN_USER_TOKEN_TYPE, atn.maxTokenType).toList()) {
+                                for (int token : IntervalSet.of(Token.MIN_USER_TOKEN_TYPE,
+                                    atn.maxTokenType).toList()) {
                                     if (!ignoredTokens.contains(token)) {
                                         candidates.tokens.put(token, Collections.emptyList());
                                     }
                                 }
                             }
                         } else {
-                            statePipeline.push(new PipelineEntry(transition.target, currentEntry.tokenListIndex + 1));
+                            statePipeline.push(new PipelineEntry(transition.target,
+                                currentEntry.tokenListIndex + 1));
                         }
                         break;
                     }
 
                     default: {
                         if (transition.isEpsilon()) {
-                            statePipeline.push(new PipelineEntry(transition.target, currentEntry.tokenListIndex));
+                            statePipeline.push(new PipelineEntry(transition.target,
+                                currentEntry.tokenListIndex));
                             continue;
                         }
 
@@ -479,18 +508,18 @@ public class CodeCompletionCore {
                                         if (!ignoredTokens.contains(symbol)) {
                                             if (showDebugOutput) {
                                                 System.out.println("=====> collected: " +
-                                                        vocabulary.getDisplayName(symbol));
+                                                                   vocabulary.getDisplayName(symbol));
                                             }
 
                                             List<Integer> followingTokens = hasTokenSequence
-                                                    ? getFollowingTokens(transition)
-                                                    : Collections.emptyList();
+                                                ? getFollowingTokens(transition)
+                                                : Collections.emptyList();
                                             if (!candidates.tokens.containsKey(symbol)) {
                                                 candidates.tokens.put(symbol, followingTokens);
                                             } else {
                                                 candidates.tokens.put(symbol,
-                                                        longestCommonPrefix(followingTokens,
-                                                                candidates.tokens.get(symbol)));
+                                                    longestCommonPrefix(followingTokens,
+                                                        candidates.tokens.get(symbol)));
                                             }
                                         }
                                     }
@@ -499,10 +528,10 @@ public class CodeCompletionCore {
                                 if (set.contains(currentSymbol)) {
                                     if (showDebugOutput) {
                                         System.out.println("=====> consumed: " +
-                                                vocabulary.getDisplayName(currentSymbol));
+                                                           vocabulary.getDisplayName(currentSymbol));
                                     }
                                     statePipeline.push(new PipelineEntry(transition.target,
-                                            currentEntry.tokenListIndex + 1));
+                                        currentEntry.tokenListIndex + 1));
                                 }
                             }
                         }
@@ -522,7 +551,7 @@ public class CodeCompletionCore {
 
     private String generateBaseDescription(ATNState state) {
         String stateValue = state.stateNumber == ATNState.INVALID_STATE_NUMBER ? "Invalid"
-                : String.valueOf(state.stateNumber);
+            : String.valueOf(state.stateNumber);
         String typeName = atnStateTypeMap[state.getStateType()];
 
         return "[" + stateValue + " " + typeName + "] in " + ruleNames[state.ruleIndex];
@@ -541,8 +570,8 @@ public class CodeCompletionCore {
 
                 if (symbols.size() > 2) {
                     labels.append(vocabulary.getDisplayName(symbols.get(0)))
-                            .append(" .. ")
-                            .append(vocabulary.getDisplayName(symbols.get(symbols.size() - 1)));
+                        .append(" .. ")
+                        .append(vocabulary.getDisplayName(symbols.get(symbols.size() - 1)));
                 } else {
                     for (int symbol : symbols) {
                         if (labels.length() > 0) {
@@ -558,8 +587,8 @@ public class CodeCompletionCore {
 
                 String typeName = atnStateTypeMap[transition.target.getStateType()];
                 transitionDescription.append("\n").append(indent).append("\t(").append(labels)
-                        .append(") [").append(transition.target.stateNumber).append(" ")
-                        .append(typeName).append("] in ").append(ruleNames[transition.target.ruleIndex]);
+                    .append(") [").append(transition.target.stateNumber).append(" ")
+                    .append(typeName).append("] in ").append(ruleNames[transition.target.ruleIndex]);
             }
         }
 
