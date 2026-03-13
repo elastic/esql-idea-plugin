@@ -25,6 +25,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiPlainText;
 
 import java.util.Optional;
 
@@ -148,7 +149,9 @@ public class CommonUtils {
         "TRIM",};
 
     // checking if there's a comment above the text block, and if it's marked with "ES|QL"
+    // if we're in a text file, skip check
     public static boolean checkEsqlCommentAbove(PsiElement element) {
+        if (element instanceof PsiPlainText) return true;
         if (element != null) {
 
             Project project = element.getProject();
