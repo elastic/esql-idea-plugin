@@ -25,6 +25,11 @@ dependencies {
   regenerate "org.antlr:antlr4:4.13.1"
 }
 
+java {
+    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_21
+}
+
 // All config below copied verbatim from https://github.com/elastic/elasticsearch/tree/main/x-pack/plugin/esql
 
 /**********************************************

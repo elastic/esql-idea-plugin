@@ -88,6 +88,10 @@ kotlin {
         this.languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+java {
+    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_21
+}
 
 tasks.register("downloadDocs") {
     doLast {
