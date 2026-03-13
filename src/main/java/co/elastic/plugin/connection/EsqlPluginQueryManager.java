@@ -19,6 +19,7 @@
 package co.elastic.plugin.connection;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.plugin.settings.EsqlConnection;
 import co.elastic.plugin.settings.EsqlPluginSettings;
@@ -101,6 +102,24 @@ public final class EsqlPluginQueryManager implements EsqlSchemaProvider {
 
     public void clearCachedResults(String connectionName) {
         cachedResults.remove(connectionName);
+    }
+
+    public String testConnection() {
+        EsqlConnection conn = settings.getActiveConnection();
+        if (conn == null || conn.serverUrl.isEmpty() || conn.apiKey.isEmpty()) {
+            return "URL and API key are required";
+        }
+        try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
+            .host(conn.serverUrl)
+            .apiKey(conn.apiKey)
+        )) {
+            client.ping();
+            return null;
+        } catch (ElasticsearchException e) {
+            return "HTTP " + e.response().status();
+        } catch (Exception e) {
+            return e.getMessage();
+        }
     }
 
     public void connect() {

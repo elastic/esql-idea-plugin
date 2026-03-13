@@ -139,6 +139,8 @@ public class EsqlResultsPanel extends JPanel {
     private void toggleConnection() {
         if (queryManager.isActiveConnectionConnected()) {
             queryManager.disconnect();
+            updateConnectButton();
+            connectionDropdown.repaint();
         } else {
             if (settings.getActiveConnection() == null) {
                 Messages.showInfoMessage(
@@ -147,10 +149,34 @@ public class EsqlResultsPanel extends JPanel {
                 );
                 return;
             }
-            queryManager.connect();
+            connectButton.setEnabled(false);
+            statusLabel.setText("Connecting...");
+
+            new SwingWorker<String, Void>() {
+                @Override
+                protected String doInBackground() {
+                    return queryManager.testConnection();
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        String error = get();
+                        if (error == null) {
+                            queryManager.connect();
+                        } else {
+                            Messages.showErrorDialog(error, "Connection Failed");
+                        }
+                    } catch (Exception e) {
+                        Messages.showErrorDialog("Connection test failed", "Connection Failed");
+                    } finally {
+                        connectButton.setEnabled(true);
+                        updateConnectButton();
+                        connectionDropdown.repaint();
+                    }
+                }
+            }.execute();
         }
-        updateConnectButton();
-        connectionDropdown.repaint();
     }
 
     private void refreshDropdown() {

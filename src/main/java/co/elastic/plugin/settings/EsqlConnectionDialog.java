@@ -138,7 +138,7 @@ public class EsqlConnectionDialog extends DialogWrapper {
                     .apiKey(apiKey)
                 )) {
                     client.ping();
-                    return "OK";
+                    return null;
                 } catch (ElasticsearchException e) {
                     return "ERR:HTTP" + e.response().status();
                 } catch (Exception e) {
@@ -150,12 +150,15 @@ public class EsqlConnectionDialog extends DialogWrapper {
             protected void done() {
                 try {
                     String result = get();
-                    if (result.startsWith("OK:")) {
+                    if (result == null) {
                         testResultLabel.setForeground(new Color(80, 160, 80));
                         testResultLabel.setText("Connected successfully");
-                    } else {
+                    } else if (result.startsWith("ERR:")) {
                         testResultLabel.setForeground(UIManager.getColor("Label.errorForeground"));
                         testResultLabel.setText(result.substring(4));
+                    } else {
+                        testResultLabel.setForeground(UIManager.getColor("Label.errorForeground"));
+                        testResultLabel.setText(result);
                     }
                 } catch (Exception e) {
                     testResultLabel.setForeground(UIManager.getColor("Label.errorForeground"));
