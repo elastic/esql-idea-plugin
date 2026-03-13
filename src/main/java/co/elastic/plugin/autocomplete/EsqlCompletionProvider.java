@@ -23,6 +23,7 @@ import co.elastic.plugin.connection.EsqlPluginQueryManager;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
+import com.intellij.codeInsight.completion.PrefixMatcher;
 import com.intellij.codeInsight.completion.PrioritizedLookupElement;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
@@ -76,16 +77,13 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                 default -> 5;
             };
 
+            var matcher = getMatcher(lastToken);
+
             switch (c.kind()) {
                 case METADATA, NAME, FIELD:
-                    insertLookupWithColor(result, c.text(), priority);
+                    insertLookupWithColor(result, c.text(), priority, matcher);
                     break;
                 default:
-                    // If the last token is not a space (spaces are in a hidden channel) or a parenthesis,
-                    // use it on matching to replace the current word
-                    var matcher = isSpaceOrParenthesis(lastToken) ? new PermissivePrefixMatcher() :
-                        new PermissivePrefixMatcher(lastToken.getText());
-
                     result.withPrefixMatcher(matcher).addElement(PrioritizedLookupElement.withPriority(
                         LookupElementBuilder.create(c.text()),
                         priority)
@@ -95,15 +93,22 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
         }
     }
 
+    private static @NotNull PrefixMatcher getMatcher(Token lastToken) {
+        // If the last token is not a space (spaces are in a hidden channel) or a parenthesis,
+        // use it on matching to replace the current word
+        return isSpaceOrParenthesis(lastToken) ? new PermissivePrefixMatcher() :
+            new PermissivePrefixMatcher(lastToken.getText());
+    }
+
     private static boolean isSpaceOrParenthesis(Token lastToken) {
         return lastToken.getChannel() != EsqlBaseLexer.DEFAULT_TOKEN_CHANNEL ||
                (lastToken.getType() == EsqlBaseLexer.LP || lastToken.getType() == EsqlBaseLexer.RP);
     }
 
     private static void insertLookupWithColor(@NotNull CompletionResultSet result, String token,
-                                              int priority) {
+                                              int priority, PrefixMatcher matcher) {
         LookupElement lookup = LookupElementBuilder.create(token);
-        result.withPrefixMatcher(new PermissivePrefixMatcher())
+        result.withPrefixMatcher(matcher)
             .addElement(PrioritizedLookupElement
                 .withPriority(LookupElementDecorator.withRenderer(lookup, new LookupElementRenderer<>() {
                     public void renderElement(LookupElementDecorator<LookupElement> element,
