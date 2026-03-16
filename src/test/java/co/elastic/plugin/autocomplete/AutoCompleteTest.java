@@ -185,6 +185,27 @@ public class AutoCompleteTest {
     }
 
     @Test
+    public void testNoIndexSuggestionsAfterCompletedIndexAndPartialTyping() {
+        var completions = Completion.computeCompletions("FROM my-index m", STUB_QUERY_MANAGER);
+        Assert.assertFalse(
+            "Should not suggest index names when typing after a completed index",
+            completions.contains(new Completion("my-index", Completion.Kind.NAME))
+        );
+        Assert.assertFalse(
+            completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER))
+        );
+    }
+
+    @Test
+    public void testNoFieldSuggestionsAfterCompletedFieldAndPartialTyping() {
+        var completions = Completion.computeCompletions("FROM my-index | WHERE field1 f", STUB_QUERY_MANAGER);
+        Assert.assertFalse(
+            "Should not suggest field names when typing after a completed field",
+            completions.contains(new Completion("field1", Completion.Kind.FIELD))
+        );
+    }
+
+    @Test
     public void testNoMetadataKeywordAfterMetadata() {
         var completions = Completion.computeCompletions("FROM index METADATA ", null);
         Assert.assertFalse(

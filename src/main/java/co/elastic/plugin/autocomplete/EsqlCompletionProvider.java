@@ -94,14 +94,15 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
     }
 
     private static @NotNull PrefixMatcher getMatcher(Token lastToken) {
-        // If the last token is not a space (spaces are in a hidden channel) or a parenthesis,
+        // If the last token is not a space (spaces are in a hidden channel) or a parenthesis, or a comma,
         // use it on matching to replace the current word
-        return isSpaceOrParenthesis(lastToken) ? new PermissivePrefixMatcher() :
+        return isSpaceOrParenthesisOrComma(lastToken) ? new PermissivePrefixMatcher() :
             new PermissivePrefixMatcher(lastToken.getText());
     }
 
-    private static boolean isSpaceOrParenthesis(Token lastToken) {
+    private static boolean isSpaceOrParenthesisOrComma(Token lastToken) {
         return lastToken.getChannel() != EsqlBaseLexer.DEFAULT_TOKEN_CHANNEL ||
+               lastToken.getType() == EsqlBaseLexer.COMMA ||
                (lastToken.getType() == EsqlBaseLexer.LP || lastToken.getType() == EsqlBaseLexer.RP);
     }
 
