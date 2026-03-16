@@ -22,12 +22,15 @@ import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
 import co.elastic.plugin.connection.EsqlSchemaProvider;
-
 import org.antlr.v4.runtime.Token;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
-import static co.elastic.plugin.CommonUtils.*;
+import static co.elastic.plugin.CommonUtils.FUNCTIONS;
+import static co.elastic.plugin.CommonUtils.METADATA_OPTIONS;
 
 public record Completion(String text, Kind kind) {
     public enum Kind {
@@ -49,41 +52,50 @@ public record Completion(String text, Kind kind) {
         var tokens = parserInfo.tokens();
         var caretToken = tokens.isEmpty() ? null : tokens.getLast();
         int caretTokenIndex = caretToken != null ? caretToken.getTokenIndex() : 0;
-        boolean caretPastLastToken = caretToken != null && caretToken.getChannel() != Token.DEFAULT_CHANNEL;
         var candidates = completionCandidates(parserInfo);
         Set<Completion> completions = new HashSet<>();
-        completions.addAll(computeTokenCompletions(candidates, caretTokenIndex, caretPastLastToken));
+        completions.addAll(computeTokenCompletions(candidates, caretTokenIndex, tokens));
         completions.addAll(computeSchemaDependentCompletions(parserInfo, candidates, queryManager,
-            caretTokenIndex, caretPastLastToken));
+            caretTokenIndex, tokens));
         return completions;
     }
 
     /**
-     * Checks whether a rule candidate must actually be considered, meaning the rule index is after the
-     * current position. This avoids situations where a rule is applied multiple times consecutively.
+     * Checks whether a rule candidate is relevant at the caret position. A candidate is filtered out when
+     * its startTokenIndex is before the current caret, and there is a whitespace
+     * token between them, meaning the user has moved past and the rule has been already matched.
      */
-    private static boolean isRuleCandidateAtCaret(CandidatesCollection candidates, int ruleIndex,
-                                                   int caretTokenIndex, boolean caretPastLastToken) {
+    private static boolean isRuleAlreadyUsed(CandidatesCollection candidates, int ruleIndex,
+                                             int caretTokenIndex, List<Token> allTokens) {
         var rule = candidates.rules.get(ruleIndex);
         if (rule == null) return false;
-        if (!caretPastLastToken) return true;
-        return rule.startTokenIndex >= caretTokenIndex;
+        if (rule.startTokenIndex >= caretTokenIndex) return true;
+        for (Token t : allTokens) {
+            int idx = t.getTokenIndex();
+            if (idx <= rule.startTokenIndex) continue;
+            if (idx > caretTokenIndex) break;
+            if (t.getChannel() != Token.DEFAULT_CHANNEL) return false;
+        }
+        return true;
     }
 
     private static Set<Completion> computeTokenCompletions(CandidatesCollection candidates,
-                                                            int caretTokenIndex, boolean caretPastLastToken) {
+                                                           int caretTokenIndex, List<Token> allTokens) {
         Set<Completion> completions = new HashSet<>();
 
-        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex, caretPastLastToken)) {
+        if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex,
+            allTokens)) {
             completions.add(new Completion("{string}", Kind.PLACEHOLDER));
         }
 
-        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, caretPastLastToken)
-            || isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex, caretPastLastToken)) {
+        if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, allTokens)
+            || isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex,
+            allTokens)) {
             completions.add(new Completion("{var}", Kind.PLACEHOLDER));
         }
 
-        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_metadataSource, caretTokenIndex, caretPastLastToken)) {
+        if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_metadataSource, caretTokenIndex,
+            allTokens)) {
             for (String opt : METADATA_OPTIONS) {
                 completions.add(new Completion(opt, Kind.METADATA));
             }
@@ -140,23 +152,25 @@ public record Completion(String text, Kind kind) {
     }
 
     private static Set<Completion> computeSchemaDependentCompletions(Parser.ParserInfo parserInfo,
-                                                                      CandidatesCollection candidates,
-                                                                      EsqlSchemaProvider queryManager,
-                                                                      int caretTokenIndex,
-                                                                      boolean caretPastLastToken) {
+                                                                     CandidatesCollection candidates,
+                                                                     EsqlSchemaProvider queryManager,
+                                                                     int caretTokenIndex,
+                                                                     List<Token> allTokens) {
         Set<Completion> completions = new HashSet<>();
         if (queryManager == null) {
             return completions;
         }
 
-        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex, caretPastLastToken)) {
+        if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex,
+            allTokens)) {
             for (String index : queryManager.getIndices()) {
                 completions.add(new Completion(index, Kind.NAME));
             }
         }
 
-        if (isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, caretPastLastToken)
-            || isRuleCandidateAtCaret(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex, caretPastLastToken)) {
+        if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_fieldName, caretTokenIndex, allTokens)
+            || isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_fieldNamePattern, caretTokenIndex,
+            allTokens)) {
             var queriedIndexes = parserInfo.queriedIndexes();
             if (!queriedIndexes.isEmpty()) {
                 String index = queriedIndexes.getLast();
