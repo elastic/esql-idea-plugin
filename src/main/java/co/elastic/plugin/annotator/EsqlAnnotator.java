@@ -20,8 +20,6 @@ package co.elastic.plugin.annotator;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
-import co.elastic.plugin.EsqlIcon;
-import co.elastic.plugin.EsqlRunIcon;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -126,19 +124,6 @@ public class EsqlAnnotator implements Annotator {
 
     private void applyColor(@NotNull PsiElement element, @NotNull AnnotationHolder holder,
                             @NotNull String text) {
-
-        // extract query text (strip triple quotes and trim)
-        String query = text.substring(3, text.length() - 3).trim();
-
-        // passive Elasticsearch brand icon
-        holder.newAnnotation(HighlightSeverity.INFORMATION, "")
-            .gutterIconRenderer(new EsqlIcon())
-            .range(element.getTextRange()).create();
-
-        // green play icon to execute the query
-        holder.newAnnotation(HighlightSeverity.INFORMATION, "")
-            .gutterIconRenderer(new EsqlRunIcon(element.getProject(), query))
-            .range(element.getTextRange()).create();
 
         // different color for different types of keywords
         List<String> allKeywords = new ArrayList<>();

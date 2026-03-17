@@ -58,6 +58,10 @@
     <annotator language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
     <annotator language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
 
+    <codeInsight.lineMarkerProvider language="JAVA" implementationClass="co.elastic.plugin.annotator.EsqlLineMarkerProvider"/>
+    <codeInsight.lineMarkerProvider language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlLineMarkerProvider"/>
+    <codeInsight.lineMarkerProvider language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlLineMarkerProvider"/>
+
     <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>
 
     <toolWindow id="Elasticsearch"
