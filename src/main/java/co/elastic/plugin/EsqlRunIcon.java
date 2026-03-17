@@ -55,6 +55,11 @@ public final class EsqlRunIcon extends GutterIconRenderer {
     }
 
     @Override
+    public boolean isNavigateAction() {
+        return true;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;

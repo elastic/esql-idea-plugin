@@ -41,6 +41,10 @@ public class ExecuteEsqlQueryAction extends AnAction {
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
+        execute(project, queryText);
+    }
+
+    public static void execute(@NotNull Project project, @NotNull String queryText) {
         EsqlResultsToolWindowFactory.showLoading(project, queryText);
 
         ProgressManager.getInstance().run(new Task.Backgroundable(project, "Executing ES|QL Query", false) {
