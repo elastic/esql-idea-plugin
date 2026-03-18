@@ -30,6 +30,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiLiteralExpression;
+import com.intellij.psi.PsiPlainText;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
 import com.intellij.psi.tree.IElementType;
@@ -50,6 +51,7 @@ import static co.elastic.plugin.CommonUtils.FUNCTIONS;
 import static co.elastic.plugin.CommonUtils.PROCESSING_COMMANDS;
 import static co.elastic.plugin.CommonUtils.SOURCE_COMMANDS;
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
+import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
 import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 /**
@@ -80,10 +82,21 @@ public class EsqlAnnotator implements Annotator {
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+        if (element instanceof PsiPlainText) {
+            List<TextRange> blocks = findEsqlBlocksInPlainText(element);
+            Document document = element.getContainingFile().getViewProvider().getDocument();
+            if (document == null) return;
+            for (TextRange block : blocks) {
+                String blockText = document.getText(block);
+                applyColor(block.getStartOffset(), holder, blockText);
+                validateText(element, holder, blockText, block.getStartOffset());
+            }
+            return;
+        }
         if (accept(element)) {
             String text = element.getText();
-            applyColor(element, holder, text);
-            validateText(element, holder, text);
+            applyColor(element.getTextRange().getStartOffset(), holder, text);
+            validateText(element, holder, text, element.getTextRange().getStartOffset());
         }
     }
 
@@ -122,10 +135,9 @@ public class EsqlAnnotator implements Annotator {
         return false;
     }
 
-    private void applyColor(@NotNull PsiElement element, @NotNull AnnotationHolder holder,
+    private void applyColor(int baseOffset, @NotNull AnnotationHolder holder,
                             @NotNull String text) {
 
-        // different color for different types of keywords
         List<String> allKeywords = new ArrayList<>();
         allKeywords.addAll(List.of(SOURCE_COMMANDS));
         allKeywords.addAll(List.of(PROCESSING_COMMANDS));
@@ -135,11 +147,10 @@ public class EsqlAnnotator implements Annotator {
             if (text.contains(keyword)) {
 
                 int index = text.indexOf(keyword);
-                // must find all occurrences of word in string
                 while (index >= 0) {
                     // making sure it's not a substring (example: "COS" and "COSH", "E" and "ENRICH")
                     if (notASubstring(text, keyword, index)) {
-                        int rangeStart = element.getTextRange().getStartOffset() + index;
+                        int rangeStart = baseOffset + index;
                         int rangeEnd = rangeStart + keyword.length();
 
                         TextRange range = new TextRange(rangeStart, rangeEnd);
@@ -158,7 +169,12 @@ public class EsqlAnnotator implements Annotator {
     private boolean notASubstring(String text, String substring, int index) {
         if (index == 0 || index == text.length() - 1) return true;
         char before = text.charAt(index - 1);
-        char after = text.charAt(index + substring.length());
+        int indexAfter = index + substring.length();
+        // TODO NO! index seems wrong. it seems to be 1 character after the actual index. maybe need to offset for plain text files
+        // guarding against cases where we need to color exactly the last character of the text
+        // happens in plain text files, would throw exception otherwise
+        if (indexAfter == text.length()) return false;
+        char after = text.charAt(indexAfter);
         return !(ESQL_SEPARATORS.indexOf(before) == -1) && !(ESQL_SEPARATORS.indexOf(after) == -1);
     }
 
@@ -171,13 +187,14 @@ public class EsqlAnnotator implements Annotator {
      * @param text    - String to validate
      */
     private void validateText(@NotNull PsiElement element, @NotNull AnnotationHolder holder,
-                              @NotNull String text) {
+                              @NotNull String text, int baseOffset) {
 
-        // remove triple quotes at the beginning and the end, also trim
-        String query = text.substring(3, text.length() - 3).trim();
-        // calculating range of inner string
-        // also needed in case of exception
-        int startingPosition = element.getTextRange().getStartOffset() + text.indexOf(query);
+        String query = text;
+        if (!(element instanceof PsiPlainText)) {
+            // remove triple quotes at the beginning and the end, also trim
+            query = text.substring(3, text.length() - 3).trim();
+        }
+        int startingPosition = baseOffset + text.indexOf(query);
         int endingPosition = startingPosition + query.length();
         TextRange wholeStringRange = new TextRange(startingPosition, endingPosition);
 
@@ -243,8 +260,10 @@ public class EsqlAnnotator implements Annotator {
         }
         PsiFile file = element.getContainingFile();
         Document document = file.getViewProvider().getDocument();
-        int lineStartOffset =
-            document.getLineStartOffset(document.getLineNumber(element.getTextRange().getStartOffset()) + error.line);
+        int queryStartLine = document.getLineNumber(queryStart);
+        int lineStartOffset = document.getLineStartOffset(queryStartLine + error.line - 1);
+        // necessary offset for plain text files
+        if (element instanceof PsiPlainText) lineStartOffset = lineStartOffset -1;
         return lineStartOffset + error.charPositionInLine;
     }
 }

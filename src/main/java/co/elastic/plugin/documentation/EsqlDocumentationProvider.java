@@ -24,6 +24,7 @@ import com.intellij.platform.backend.documentation.DocumentationTarget;
 import com.intellij.platform.backend.documentation.DocumentationTargetProvider;
 import com.intellij.platform.backend.presentation.TargetPresentation;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiPlainText;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -41,7 +42,8 @@ public class EsqlDocumentationProvider implements DocumentationTargetProvider {
     public @NotNull List<? extends @NotNull DocumentationTarget> documentationTargets(@NotNull PsiFile psiFile, int i) {
         var elementAtOffset = psiFile.findElementAt(i);
         if (elementAtOffset == null || !(elementAtOffset.getNode().getElementType().equals(TEXT_BLOCK_LITERAL) || isKotlinString(elementAtOffset))
-            || !checkEsqlCommentAbove(elementAtOffset)) {
+            || !(elementAtOffset instanceof PsiPlainText)
+            || !checkEsqlCommentAbove(elementAtOffset, i)) {
             return List.of();
         }
 

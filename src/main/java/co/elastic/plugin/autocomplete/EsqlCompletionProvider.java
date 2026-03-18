@@ -63,7 +63,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             text = text.substring(3);
         }
 
-        if (!checkEsqlCommentAbove(elementAtOffset)) {
+        if (!checkEsqlCommentAbove(elementAtOffset, caretOffset)) {
             return;
         }
 
