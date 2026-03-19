@@ -34,6 +34,7 @@ import java.util.Optional;
 public class CommonUtils {
 
     public static final String ESQL_SEPARATORS = "\"'[ ()=]+\n";
+    public static final String ESQL_COMMENT = "// ES|QL";
     public static final String[] METADATA_OPTIONS = new String[]{"_id", "_ignored", "_index", "_index_mode", "_score", "_source", "_version"};
     public static final String[] SOURCE_COMMANDS = new String[]{"FROM", "ROW", "SHOW"};
     public static final String[] PROCESSING_COMMANDS = new String[]{"DISSECT", "DROP", "ENRICH", "EVAL",
@@ -170,7 +171,7 @@ public class CommonUtils {
                     // -1 to avoid out of bounds
                     int prevLineEnd = document.getLineEndOffset(line - 1);
                     String prevLineText = document.getText(new TextRange(prevLineStart, prevLineEnd));
-                    return prevLineText.trim().startsWith("// ES|QL");
+                    return prevLineText.trim().startsWith(ESQL_COMMENT);
                 }
             }
         }
@@ -194,7 +195,7 @@ public class CommonUtils {
             int lineEnd = document.getLineEndOffset(i);
             String lineText = document.getText(new TextRange(lineStart, lineEnd)).trim();
 
-            if (lineText.startsWith("// ES|QL")) {
+            if (lineText.startsWith(ESQL_COMMENT)) {
                 int blockStart = -1;
                 int blockEnd = -1;
                 i++;
