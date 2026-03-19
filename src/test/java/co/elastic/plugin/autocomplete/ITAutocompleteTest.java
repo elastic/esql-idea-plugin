@@ -426,4 +426,133 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
             Assert.assertEquals(ThreeState.NO, result);
         });
     }
+
+    public void testCompletionsTxt() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            <caret>
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        myFixture.type("FR");
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
+
+        myFixture.checkResult("""
+            // ES|QL
+            FROM
+            """);
+
+        myFixture.type(" ");
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
+
+        LookupImpl lookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(lookup);
+        LookupElement finalElement = elements[0];
+        EdtTestUtil.runInEdtAndWait(() -> {
+            lookup.setCurrentItem(finalElement);
+            lookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
+
+        myFixture.checkResult("""
+            // ES|QL
+            FROM {string}
+            """);
+
+        myFixture.type(" ");
+        elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(3, elements.length);
+        LookupElement pipe = Arrays.stream(elements)
+            .filter(le -> le
+                .getLookupString()
+                .contains("|"))
+            .findFirst().get();
+        Assert.assertEquals("|", pipe.getLookupString());
+
+        LookupImpl lookup1 = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        EdtTestUtil.runInEdtAndWait(() -> {
+            lookup1.setCurrentItem(pipe);
+            lookup1.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
+
+        myFixture.checkResult("""
+            // ES|QL
+            FROM {string} |
+            """);
+
+        myFixture.type(" ");
+        elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(21, elements.length);
+        LookupElement where = Arrays.stream(elements)
+            .filter(le -> le.getLookupString().contains("WHERE"))
+            .findFirst().get();
+        Assert.assertEquals("WHERE", where.getLookupString());
+
+        LookupImpl lookup2 = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        EdtTestUtil.runInEdtAndWait(() -> {
+            lookup2.setCurrentItem(where);
+            lookup2.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
+
+        myFixture.checkResult("""
+            // ES|QL
+            FROM {string} | WHERE
+            """);
+    }
+
+    public void testCaretInTheMiddleOfASentenceTxt() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FROM <caret> | EVAL x = 3
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
+    }
+
+    @Test
+    public void testAutopopupEnabledTxt() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FROM <caret>
+            """);
+
+        ReadAction.run(() -> {
+            EsqlCompletionConfidence confidence = new EsqlCompletionConfidence();
+            int offset = myFixture.getCaretOffset();
+            PsiFile psiFile = myFixture.getFile();
+            PsiElement element = psiFile.findElementAt(offset);
+            Assert.assertNotNull(element);
+
+            ThreeState result = confidence.shouldSkipAutopopup(element, psiFile, offset);
+            Assert.assertEquals(ThreeState.NO, result);
+        });
+    }
 }

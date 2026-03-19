@@ -118,4 +118,36 @@ public class EsqlDocumentationTest extends BasePlatformTestCase {
         DocumentationResult result = esqlDocs.computeDocumentation();
         assertEquals(EsqlDocsMap.getDocforCommand("from"), result);
     }
+
+    @Test
+    public void testInputElementShowsDocumentationTxt() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FRO<caret>M ul_logs, apps METADATA _index, _version
+            | WHERE id IN (13, 14) AND _version == 1
+            """);
+
+        PsiFile file = myFixture.getFile();
+        int offset = myFixture.getCaretOffset();
+        PsiElement leafPsiElement = myFixture.getFile().findElementAt(offset);
+        assertNotNull(leafPsiElement);
+
+        List<DocumentationTargetProvider> providers = DocumentationTargetProvider.EP_NAME.getExtensionList();
+        assertNotNull(providers);
+        assertTrue(providers.stream().anyMatch(p -> p instanceof EsqlDocumentationProvider));
+        EsqlDocumentationProvider esqlDocProvider = (EsqlDocumentationProvider) providers.stream()
+            .filter(p -> p instanceof EsqlDocumentationProvider)
+            .findFirst().orElse(null);
+
+        List<? extends @NotNull DocumentationTarget> targets = esqlDocProvider
+            .documentationTargets(file, offset);
+        assertNotNull(targets);
+        DocumentationTarget documentationTarget = targets.getFirst();
+        assertTrue(documentationTarget instanceof EsqlDocumentationProvider.EsqlDocs);
+        EsqlDocumentationProvider.EsqlDocs esqlDocs =
+            (EsqlDocumentationProvider.EsqlDocs) documentationTarget;
+
+        DocumentationResult result = esqlDocs.computeDocumentation();
+        assertEquals(EsqlDocsMap.getDocforCommand("from"), result);
+    }
 }
