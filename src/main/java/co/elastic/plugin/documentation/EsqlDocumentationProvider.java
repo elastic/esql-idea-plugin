@@ -41,8 +41,9 @@ public class EsqlDocumentationProvider implements DocumentationTargetProvider {
     @Override
     public @NotNull List<? extends @NotNull DocumentationTarget> documentationTargets(@NotNull PsiFile psiFile, int i) {
         var elementAtOffset = psiFile.findElementAt(i);
-        if (elementAtOffset == null || !(elementAtOffset.getNode().getElementType().equals(TEXT_BLOCK_LITERAL) || isKotlinString(elementAtOffset))
-            || !(elementAtOffset instanceof PsiPlainText)
+        if (elementAtOffset == null || !(elementAtOffset.getNode().getElementType().equals(TEXT_BLOCK_LITERAL)
+                                         || isKotlinString(elementAtOffset)
+                                         || elementAtOffset instanceof PsiPlainText)
             || !checkEsqlCommentAbove(elementAtOffset, i)) {
             return List.of();
         }

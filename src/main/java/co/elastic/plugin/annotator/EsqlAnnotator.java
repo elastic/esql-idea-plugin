@@ -170,10 +170,8 @@ public class EsqlAnnotator implements Annotator {
         if (index == 0 || index == text.length() - 1) return true;
         char before = text.charAt(index - 1);
         int indexAfter = index + substring.length();
-        // TODO NO! index seems wrong. it seems to be 1 character after the actual index. maybe need to offset for plain text files
-        // guarding against cases where we need to color exactly the last character of the text
-        // happens in plain text files, would throw exception otherwise
-        if (indexAfter == text.length()) return false;
+        // there's no character after, this is the last char
+        if (indexAfter == text.length()) return !(ESQL_SEPARATORS.indexOf(before) == -1);
         char after = text.charAt(indexAfter);
         return !(ESQL_SEPARATORS.indexOf(before) == -1) && !(ESQL_SEPARATORS.indexOf(after) == -1);
     }
