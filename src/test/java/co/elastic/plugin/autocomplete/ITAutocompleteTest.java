@@ -521,10 +521,69 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
             """);
     }
 
+    public void testCompletionTxtMultiple(){
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FROM index | WHERE field == "value"
+            ;
+            
+            // ES|QL
+            <caret>
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        myFixture.type("FR");
+        LookupElement[] frElements = myFixture.completeBasic();
+
+        Assert.assertNotNull(frElements);
+        LookupElement from = Arrays.stream(frElements)
+            .filter(le -> le.getLookupString().equals("FROM"))
+            .findFirst().get();
+
+        LookupImpl frLookup = (LookupImpl) LookupManager.getActiveLookup(myFixture.getEditor());
+        Assert.assertNotNull(frLookup);
+        EdtTestUtil.runInEdtAndWait(() -> {
+            frLookup.setCurrentItem(from);
+            frLookup.finishLookup(Lookup.NORMAL_SELECT_CHAR);
+        });
+
+        myFixture.checkResult("""
+            // ES|QL
+            FROM index | WHERE field == "value"
+            ;
+            
+            // ES|QL
+            FROM
+            """);
+    }
+
     public void testCaretInTheMiddleOfASentenceTxt() {
         myFixture.configureByText("test.txt", """
             // ES|QL
             FROM <caret> | EVAL x = 3
+            """);
+
+        WriteCommandAction.runWriteCommandAction(getProject(), () ->
+            myFixture.getEditor().getCaretModel().moveToOffset(myFixture.getCaretOffset()));
+
+        LookupElement[] elements = myFixture.completeBasic();
+
+        Assert.assertNotNull(elements);
+        Assert.assertEquals(1, elements.length);
+        Assert.assertEquals("{string}", elements[0].getLookupString());
+    }
+
+    public void testCaretInTheMiddleOfASentenceTxtMultiple() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FROM index | EVAL x = 3
+            ;
+            
+            // ES|QL
+            FROM <caret> | EVAL x = 3
+            ;
             """);
 
         WriteCommandAction.runWriteCommandAction(getProject(), () ->
@@ -542,6 +601,29 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         myFixture.configureByText("test.txt", """
             // ES|QL
             FROM <caret>
+            """);
+
+        ReadAction.run(() -> {
+            EsqlCompletionConfidence confidence = new EsqlCompletionConfidence();
+            int offset = myFixture.getCaretOffset();
+            PsiFile psiFile = myFixture.getFile();
+            PsiElement element = psiFile.findElementAt(offset);
+            Assert.assertNotNull(element);
+
+            ThreeState result = confidence.shouldSkipAutopopup(element, psiFile, offset);
+            Assert.assertEquals(ThreeState.NO, result);
+        });
+    }
+
+    @Test
+    public void testAutopopupEnabledTxtMultiples() {
+        myFixture.configureByText("test.txt", """
+            // ES|QL
+            FROM index | EVAL x = 3
+            ;
+            // ES|QL
+            FROM <caret>
+            ;
             """);
 
         ReadAction.run(() -> {

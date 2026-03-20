@@ -32,12 +32,15 @@ import com.intellij.codeInsight.lookup.LookupElementPresentation;
 import com.intellij.codeInsight.lookup.LookupElementRenderer;
 import com.intellij.lang.Language;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.util.TextRange;
+import com.intellij.psi.PsiPlainText;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ProcessingContext;
 import org.antlr.v4.runtime.Token;
 import org.jetbrains.annotations.NotNull;
 
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
+import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
 
 public class EsqlCompletionProvider extends CompletionProvider<CompletionParameters> {
 
@@ -50,17 +53,26 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
                                   @NotNull CompletionResultSet result) {
 
         var elementAtOffset = parameters.getOriginalPosition();
-        String text = elementAtOffset.getText();
         int caretOffset = parameters.getOffset();
-        int elementStart = elementAtOffset.getTextRange().getStartOffset();
+        String text;
 
-        // Get the text until the cursor
-        int relativeOffset = caretOffset - elementStart;
-        text = text.substring(0, relativeOffset);
-        // removing triple quotes if java
-        if (elementAtOffset.getLanguage().is(Language.findLanguageByID("JAVA"))) {
-            // skip opening """ (3 chars) and spaces
-            text = text.substring(3);
+        // for txt files, the element will be the whole file, so need to get the specific block
+        if (elementAtOffset instanceof PsiPlainText) {
+            TextRange block = findEsqlBlocksInPlainText(elementAtOffset).stream()
+                .filter(range -> range.getStartOffset() <= caretOffset && caretOffset <= range.getEndOffset())
+                .findFirst()
+                .orElse(null);
+            if (block == null) return;
+            text = elementAtOffset.getText().substring(
+                block.getStartOffset() - elementAtOffset.getTextRange().getStartOffset(),
+                caretOffset - elementAtOffset.getTextRange().getStartOffset());
+        } else {
+            int elementStart = elementAtOffset.getTextRange().getStartOffset();
+            text = elementAtOffset.getText().substring(0, caretOffset - elementStart);
+            // remove triple quotes if java
+            if (elementAtOffset.getLanguage().is(Language.findLanguageByID("JAVA"))) {
+                text = text.substring(3);
+            }
         }
 
         if (!checkEsqlCommentAbove(elementAtOffset, caretOffset)) {

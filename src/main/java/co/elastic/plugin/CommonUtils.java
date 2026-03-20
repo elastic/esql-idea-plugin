@@ -179,7 +179,7 @@ public class CommonUtils {
     }
 
     // finds all ES|QL blocks in a plain text file
-    // each block starts on the line after a "// ES|QL" comment and ends at the next empty line
+    // each block starts on the line after a "// ES|QL" comment and ends at the next newline with a semicolon
     public static List<TextRange> findEsqlBlocksInPlainText(PsiElement element) {
         List<TextRange> ranges = new ArrayList<>();
         if (!(element instanceof PsiPlainText)) return ranges;
@@ -203,7 +203,7 @@ public class CommonUtils {
                     lineStart = document.getLineStartOffset(i);
                     lineEnd = document.getLineEndOffset(i);
                     lineText = document.getText(new TextRange(lineStart, lineEnd)).trim();
-                    if (lineText.isEmpty()) break;
+                    if (lineText.equals(";")) break;
                     if (blockStart == -1) blockStart = document.getLineStartOffset(i);
                     blockEnd = document.getLineEndOffset(i);
                     i++;
