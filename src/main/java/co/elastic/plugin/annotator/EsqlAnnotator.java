@@ -260,8 +260,6 @@ public class EsqlAnnotator implements Annotator {
         Document document = file.getViewProvider().getDocument();
         int queryStartLine = document.getLineNumber(queryStart);
         int lineStartOffset = document.getLineStartOffset(queryStartLine + error.line - 1);
-        // necessary offset for plain text files
-        if (element instanceof PsiPlainText) lineStartOffset = lineStartOffset -1;
         return lineStartOffset + error.charPositionInLine;
     }
 }
