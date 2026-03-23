@@ -40,6 +40,7 @@ import java.util.List;
 
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
 import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
+import static co.elastic.plugin.CommonUtils.isEsqlTextBlock;
 import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 public class EsqlLineMarkerProvider implements LineMarkerProvider {
@@ -88,19 +89,5 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
         ));
     }
 
-    private static boolean isEsqlTextBlock(@NotNull PsiElement element) {
-        if (element.getNode() == null) return false;
-        IElementType type = element.getNode().getElementType();
-        if (type == TokenType.WHITE_SPACE) return false;
 
-        if (element instanceof PsiLiteralExpression) {
-            if (((PsiJavaTokenImpl) element.getFirstChild()).getElementType().equals(TEXT_BLOCK_LITERAL)) {
-                return checkEsqlCommentAbove(element);
-            }
-        }
-        if (element.toString().equals("STRING_TEMPLATE")) {
-            return checkEsqlCommentAbove(element);
-        }
-        return false;
-    }
 }

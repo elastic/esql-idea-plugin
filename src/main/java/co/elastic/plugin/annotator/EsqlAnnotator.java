@@ -52,6 +52,7 @@ import static co.elastic.plugin.CommonUtils.PROCESSING_COMMANDS;
 import static co.elastic.plugin.CommonUtils.SOURCE_COMMANDS;
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
 import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
+import static co.elastic.plugin.CommonUtils.isEsqlTextBlock;
 import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 /**
@@ -93,46 +94,11 @@ public class EsqlAnnotator implements Annotator {
             }
             return;
         }
-        if (accept(element)) {
+        if (isEsqlTextBlock(element)) {
             String text = element.getText();
             applyColor(element.getTextRange().getStartOffset(), holder, text);
             validateText(element, holder, text, element.getTextRange().getStartOffset());
         }
-    }
-
-    /**
-     * To filter unwanted elements
-     *
-     * @return <ttt>true</ttt> to accept or <tt>false</tt> to drop
-     */
-    boolean accept(PsiElement element) {
-
-        if (element == null || element.getNode() == null) {
-            return false;
-        }
-
-        // skip whitespaces
-        IElementType type = element.getNode().getElementType();
-        if (type == TokenType.WHITE_SPACE) {
-            return false;
-        }
-
-        // it's a literal expression
-        // PsiLiteralExpression for java
-        if (element instanceof PsiLiteralExpression) {
-            // it's a text block (triple quote)
-            if (((PsiJavaTokenImpl) element.getFirstChild()).getElementType().equals(TEXT_BLOCK_LITERAL)) {
-
-                return checkEsqlCommentAbove(element);
-            }
-        }
-
-        // STRING_TEMPLATE to match kotlin triple quote
-        if (element.toString().equals("STRING_TEMPLATE")) {
-            return checkEsqlCommentAbove(element);
-        }
-
-        return false;
     }
 
     private void applyColor(int baseOffset, @NotNull AnnotationHolder holder,
