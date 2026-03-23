@@ -60,27 +60,7 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
                 Document document = element.getContainingFile().getViewProvider().getDocument();
                 if (document == null) return;
                 for (TextRange range : ranges) {
-                    result.add(new LineMarkerInfo<>(
-                        element,
-                        range,
-                        EsqlIcon.ESQL_ICON,
-                        e -> "ES|QL Query",
-                        null,
-                        GutterIconRenderer.Alignment.LEFT,
-                        () -> "ES|QL Query"
-                    ));
-
-                    String query = document.getText(range);
-
-                    result.add(new LineMarkerInfo<>(
-                        element,
-                        range,
-                        AllIcons.Actions.Execute,
-                        e -> "Execute ES|QL Query",
-                        (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
-                        GutterIconRenderer.Alignment.RIGHT,
-                        () -> "Execute ES|QL Query"
-                    ));
+                    addMarkers(result, element, range, document.getText(range));
                 }
                 return;
             }
@@ -89,27 +69,23 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
 
             String text = element.getText();
             String query = text.substring(3, text.length() - 3).trim();
-
-            result.add(new LineMarkerInfo<>(
-                element,
-                element.getTextRange(),
-                EsqlIcon.ESQL_ICON,
-                e -> "ES|QL Query",
-                null,
-                GutterIconRenderer.Alignment.LEFT,
-                () -> "ES|QL Query"
-            ));
-
-            result.add(new LineMarkerInfo<>(
-                element,
-                element.getTextRange(),
-                AllIcons.Actions.Execute,
-                e -> "Execute ES|QL Query",
-                (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
-                GutterIconRenderer.Alignment.RIGHT,
-                () -> "Execute ES|QL Query"
-            ));
+            addMarkers(result, element, element.getTextRange(), query);
         }
+    }
+
+    private static void addMarkers(Collection<? super LineMarkerInfo<?>> result,
+                                    PsiElement element, TextRange range, String query) {
+        result.add(new LineMarkerInfo<>(
+            element, range, EsqlIcon.ESQL_ICON,
+            e -> "ES|QL Query", null,
+            GutterIconRenderer.Alignment.LEFT, () -> "ES|QL Query"
+        ));
+        result.add(new LineMarkerInfo<>(
+            element, range, AllIcons.Actions.Execute,
+            e -> "Execute ES|QL Query",
+            (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
+            GutterIconRenderer.Alignment.RIGHT, () -> "Execute ES|QL Query"
+        ));
     }
 
     private static boolean isEsqlTextBlock(@NotNull PsiElement element) {

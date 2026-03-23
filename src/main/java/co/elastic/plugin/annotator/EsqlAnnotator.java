@@ -171,9 +171,9 @@ public class EsqlAnnotator implements Annotator {
         char before = text.charAt(index - 1);
         int indexAfter = index + substring.length();
         // there's no character after, this is the last char
-        if (indexAfter == text.length()) return !(ESQL_SEPARATORS.indexOf(before) == -1);
+        if (indexAfter == text.length()) return ESQL_SEPARATORS.indexOf(before) != -1;
         char after = text.charAt(indexAfter);
-        return !(ESQL_SEPARATORS.indexOf(before) == -1) && !(ESQL_SEPARATORS.indexOf(after) == -1);
+        return !(ESQL_SEPARATORS.indexOf(before) == -1) && ESQL_SEPARATORS.indexOf(after) != -1;
     }
 
 
