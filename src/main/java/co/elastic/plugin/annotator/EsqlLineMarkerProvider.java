@@ -55,27 +55,21 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
                                         @NotNull Collection<? super LineMarkerInfo<?>> result) {
         for (PsiElement element : elements) {
 
-
             if (element instanceof PsiPlainText) {
                 List<TextRange> ranges = findEsqlBlocksInPlainText(element);
-                Document document = element.getContainingFile().getViewProvider().getDocument();
-                if (document == null) return;
                 for (TextRange range : ranges) {
-                    addMarkers(result, element, range, document.getText(range));
+                    addMarkers(result, element, range);
                 }
                 return;
             }
 
             if (!isEsqlTextBlock(element)) continue;
-
-            String text = element.getText();
-            String query = text.substring(3, text.length() - 3).trim();
-            addMarkers(result, element, element.getTextRange(), query);
+            addMarkers(result, element, element.getTextRange());
         }
     }
 
     private static void addMarkers(Collection<? super LineMarkerInfo<?>> result,
-                                    PsiElement element, TextRange range, String query) {
+                                    PsiElement element, TextRange range) {
         result.add(new LineMarkerInfo<>(
             element, range, EsqlIcon.ESQL_ICON,
             e -> "ES|QL Query", null,
@@ -84,9 +78,28 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
         result.add(new LineMarkerInfo<>(
             element, range, AllIcons.Actions.Execute,
             e -> "Execute ES|QL Query",
-            (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
+            (mouseEvent, el) -> {
+                String query = resolveQuery(el, range);
+                if (query != null) {
+                    ExecuteEsqlQueryAction.execute(el.getProject(), query);
+                }
+            },
             GutterIconRenderer.Alignment.RIGHT, () -> "Execute ES|QL Query"
         ));
+    }
+
+    private static String resolveQuery(PsiElement el, TextRange originalRange) {
+        if (el instanceof PsiPlainText) {
+            Document doc = el.getContainingFile().getViewProvider().getDocument();
+            if (doc == null) return null;
+            return findEsqlBlocksInPlainText(el).stream()
+                .filter(block -> block.intersects(originalRange))
+                .findFirst()
+                .map(doc::getText)
+                .orElse(null);
+        }
+        String text = el.getText();
+        return text.substring(3, text.length() - 3).trim();
     }
 
 
