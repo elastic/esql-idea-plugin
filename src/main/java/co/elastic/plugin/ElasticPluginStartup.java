@@ -18,18 +18,50 @@
  */
 package co.elastic.plugin;
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
+import com.intellij.psi.PsiComment;
+import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiTreeChangeAdapter;
+import com.intellij.psi.PsiTreeChangeEvent;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static co.elastic.plugin.CommonUtils.ESQL_COMMENT;
 
 public class ElasticPluginStartup implements ProjectActivity {
 
     @Override
     public @Nullable Object execute(@NotNull Project project,
                                     @NotNull Continuation<? super Unit> continuation) {
+        PsiManager.getInstance(project).addPsiTreeChangeListener(new PsiTreeChangeAdapter() {
+            @Override
+            public void childReplaced(@NotNull PsiTreeChangeEvent event) {
+                restartIfCommentChanged(project, event);
+            }
+
+            @Override
+            public void childAdded(@NotNull PsiTreeChangeEvent event) {
+                restartIfCommentChanged(project, event);
+            }
+
+            @Override
+            public void childRemoved(@NotNull PsiTreeChangeEvent event) {
+                restartIfCommentChanged(project, event);
+            }
+        }, project);
         return null;
+    }
+
+    private static void restartIfCommentChanged(@NotNull Project project,
+                                                 @NotNull PsiTreeChangeEvent event) {
+        if (event.getChild() instanceof PsiComment comment
+            && comment.getText().contains(ESQL_COMMENT)
+            && event.getFile() != null) {
+            DaemonCodeAnalyzer.getInstance(project).restart(event.getFile());
+        }
     }
 }
