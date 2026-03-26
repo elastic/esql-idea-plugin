@@ -20,6 +20,8 @@ package co.elastic.plugin.annotator;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
+import co.elastic.plugin.EsqlIcon;
+import co.elastic.plugin.EsqlRunIcon;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -89,6 +91,7 @@ public class EsqlAnnotator implements Annotator {
             if (document == null) return;
             for (TextRange block : blocks) {
                 String blockText = document.getText(block);
+                addIcons(element.getProject(), holder, block, blockText);
                 applyColor(block.getStartOffset(), holder, blockText);
                 validateText(element, holder, blockText, block.getStartOffset());
             }
@@ -96,9 +99,22 @@ public class EsqlAnnotator implements Annotator {
         }
         if (isEsqlTextBlock(element)) {
             String text = element.getText();
+            String query = text.substring(3, text.length() - 3).trim();
+            addIcons(element.getProject(), holder, element.getTextRange(), query);
             applyColor(element.getTextRange().getStartOffset(), holder, text);
             validateText(element, holder, text, element.getTextRange().getStartOffset());
         }
+    }
+
+    private void addIcons(@NotNull com.intellij.openapi.project.Project project,
+                                @NotNull AnnotationHolder holder,
+                                @NotNull TextRange range, @NotNull String query) {
+        holder.newAnnotation(HighlightSeverity.INFORMATION, "")
+            .gutterIconRenderer(new EsqlIcon())
+            .range(range).create();
+        holder.newAnnotation(HighlightSeverity.INFORMATION, "")
+            .gutterIconRenderer(new EsqlRunIcon(project, query))
+            .range(range).create();
     }
 
     private void applyColor(int baseOffset, @NotNull AnnotationHolder holder,
