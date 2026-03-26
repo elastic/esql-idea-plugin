@@ -25,12 +25,23 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiLiteralExpression;
+import com.intellij.psi.PsiPlainText;
+import com.intellij.psi.TokenType;
+import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
+import com.intellij.psi.tree.IElementType;
+import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+
+import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 public class CommonUtils {
 
-    public static final String ESQL_SEPARATORS = "\"'[ ()=]+";
+    public static final String ESQL_SEPARATORS = "\"'[ ()=]+\n";
+    public static final String ESQL_COMMENT = "// ES|QL";
     public static final String[] METADATA_OPTIONS = new String[]{"_id", "_ignored", "_index", "_index_mode", "_score", "_source", "_version"};
     public static final String[] SOURCE_COMMANDS = new String[]{"FROM", "ROW", "SHOW"};
     public static final String[] PROCESSING_COMMANDS = new String[]{"DISSECT", "DROP", "ENRICH", "EVAL",
@@ -150,7 +161,6 @@ public class CommonUtils {
     // checking if there's a comment above the text block, and if it's marked with "ES|QL"
     public static boolean checkEsqlCommentAbove(PsiElement element) {
         if (element != null) {
-
             Project project = element.getProject();
             PsiFile psiFile = element.getContainingFile();
             Document document = PsiDocumentManager.getInstance(project).getDocument(psiFile);
@@ -168,16 +178,87 @@ public class CommonUtils {
                     // -1 to avoid out of bounds
                     int prevLineEnd = document.getLineEndOffset(line - 1);
                     String prevLineText = document.getText(new TextRange(prevLineStart, prevLineEnd));
-                    return prevLineText.trim().startsWith("// ES|QL");
+                    return prevLineText.trim().startsWith(ESQL_COMMENT);
                 }
             }
         }
         return false;
     }
 
+    // finds all ES|QL blocks in a plain text file
+    // each block starts on the line after a "// ES|QL" comment and ends at the next newline with a semicolon
+    public static List<TextRange> findEsqlBlocksInPlainText(PsiElement element) {
+        List<TextRange> ranges = new ArrayList<>();
+        if (!(element instanceof PsiPlainText)) return ranges;
+
+        Project project = element.getProject();
+        PsiFile psiFile = element.getContainingFile();
+        Document document = PsiDocumentManager.getInstance(project).getDocument(psiFile);
+        if (document == null) return ranges;
+
+        int totalLines = document.getLineCount();
+        for (int i = 0; i < totalLines; i++) {
+            int lineStart = document.getLineStartOffset(i);
+            int lineEnd = document.getLineEndOffset(i);
+            String lineText = document.getText(new TextRange(lineStart, lineEnd)).trim();
+
+            if (lineText.startsWith(ESQL_COMMENT)) {
+                int blockStart = -1;
+                int blockEnd = -1;
+                i++;
+                while (i < totalLines) {
+                    lineStart = document.getLineStartOffset(i);
+                    lineEnd = document.getLineEndOffset(i);
+                    lineText = document.getText(new TextRange(lineStart, lineEnd)).trim();
+                    if (lineText.equals(";")) break;
+                    if (blockStart == -1) blockStart = document.getLineStartOffset(i);
+                    blockEnd = document.getLineEndOffset(i);
+                    i++;
+                }
+                if (blockStart != -1) {
+                    ranges.add(new TextRange(blockStart, blockEnd));
+                }
+            }
+        }
+        return ranges;
+    }
+
+    public static boolean checkEsqlCommentAbove(PsiElement element, int offset) {
+        if (element instanceof PsiPlainText) {
+            return findEsqlBlocksInPlainText(element).stream()
+                .anyMatch(range -> range.getStartOffset() <= offset && offset <= range.getEndOffset());
+        }
+        return checkEsqlCommentAbove(element);
+    }
+
     public static boolean isKotlinString(PsiElement element) {
         return Optional.ofNullable(element.getParent())
             .map(x -> x.toString().equals("LITERAL_STRING_TEMPLATE_ENTRY"))
             .orElse(false);
+    }
+
+    public static boolean isEsqlTextBlock(@NotNull PsiElement element) {
+        if (element == null || element.getNode() == null) return false;
+        IElementType type = element.getNode().getElementType();
+        if (type == TokenType.WHITE_SPACE) {
+            return false;
+        }
+
+        // it's a literal expression
+        // PsiLiteralExpression for java
+        if (element instanceof PsiLiteralExpression) {
+            // it's a text block (triple quote)
+            if (((PsiJavaTokenImpl) element.getFirstChild()).getElementType().equals(TEXT_BLOCK_LITERAL)) {
+
+                return checkEsqlCommentAbove(element);
+            }
+        }
+
+        // STRING_TEMPLATE to match kotlin triple quote
+        if (element.toString().equals("STRING_TEMPLATE")) {
+            return checkEsqlCommentAbove(element);
+        }
+
+        return false;
     }
 }

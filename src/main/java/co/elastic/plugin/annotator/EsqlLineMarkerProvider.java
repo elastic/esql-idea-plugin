@@ -23,9 +23,12 @@ import co.elastic.plugin.execution.ExecuteEsqlQueryAction;
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.codeInsight.daemon.LineMarkerProvider;
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiLiteralExpression;
+import com.intellij.psi.PsiPlainText;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
 import com.intellij.psi.tree.IElementType;
@@ -36,6 +39,8 @@ import java.util.Collection;
 import java.util.List;
 
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
+import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
+import static co.elastic.plugin.CommonUtils.isEsqlTextBlock;
 import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 public class EsqlLineMarkerProvider implements LineMarkerProvider {
@@ -49,46 +54,40 @@ public class EsqlLineMarkerProvider implements LineMarkerProvider {
     public void collectSlowLineMarkers(@NotNull List<? extends PsiElement> elements,
                                         @NotNull Collection<? super LineMarkerInfo<?>> result) {
         for (PsiElement element : elements) {
+
+
+            if (element instanceof PsiPlainText) {
+                List<TextRange> ranges = findEsqlBlocksInPlainText(element);
+                Document document = element.getContainingFile().getViewProvider().getDocument();
+                if (document == null) return;
+                for (TextRange range : ranges) {
+                    addMarkers(result, element, range, document.getText(range));
+                }
+                return;
+            }
+
             if (!isEsqlTextBlock(element)) continue;
 
             String text = element.getText();
             String query = text.substring(3, text.length() - 3).trim();
-
-            result.add(new LineMarkerInfo<>(
-                element,
-                element.getTextRange(),
-                EsqlIcon.ESQL_ICON,
-                e -> "ES|QL Query",
-                null,
-                GutterIconRenderer.Alignment.LEFT,
-                () -> "ES|QL Query"
-            ));
-
-            result.add(new LineMarkerInfo<>(
-                element,
-                element.getTextRange(),
-                AllIcons.Actions.Execute,
-                e -> "Execute ES|QL Query",
-                (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
-                GutterIconRenderer.Alignment.RIGHT,
-                () -> "Execute ES|QL Query"
-            ));
+            addMarkers(result, element, element.getTextRange(), query);
         }
     }
 
-    private static boolean isEsqlTextBlock(@NotNull PsiElement element) {
-        if (element.getNode() == null) return false;
-        IElementType type = element.getNode().getElementType();
-        if (type == TokenType.WHITE_SPACE) return false;
-
-        if (element instanceof PsiLiteralExpression) {
-            if (((PsiJavaTokenImpl) element.getFirstChild()).getElementType().equals(TEXT_BLOCK_LITERAL)) {
-                return checkEsqlCommentAbove(element);
-            }
-        }
-        if (element.toString().equals("STRING_TEMPLATE")) {
-            return checkEsqlCommentAbove(element);
-        }
-        return false;
+    private static void addMarkers(Collection<? super LineMarkerInfo<?>> result,
+                                    PsiElement element, TextRange range, String query) {
+        result.add(new LineMarkerInfo<>(
+            element, range, EsqlIcon.ESQL_ICON,
+            e -> "ES|QL Query", null,
+            GutterIconRenderer.Alignment.LEFT, () -> "ES|QL Query"
+        ));
+        result.add(new LineMarkerInfo<>(
+            element, range, AllIcons.Actions.Execute,
+            e -> "Execute ES|QL Query",
+            (mouseEvent, elt) -> ExecuteEsqlQueryAction.execute(elt.getProject(), query),
+            GutterIconRenderer.Alignment.RIGHT, () -> "Execute ES|QL Query"
+        ));
     }
+
+
 }

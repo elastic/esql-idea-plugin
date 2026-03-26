@@ -23,6 +23,7 @@ import com.intellij.codeInsight.completion.CompletionConfidence;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiPlainText;
 import com.intellij.util.ThreeState;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,9 +39,10 @@ public class EsqlCompletionConfidence extends CompletionConfidence {
         }
 
         boolean isStringLiteral = node.getElementType().equals(TEXT_BLOCK_LITERAL)
-            || node.getElementType().toString().equals("REGULAR_STRING_PART");
+            || node.getElementType().toString().equals("REGULAR_STRING_PART")
+            || contextElement instanceof PsiPlainText;
 
-        if (isStringLiteral && CommonUtils.checkEsqlCommentAbove(contextElement)) {
+        if (isStringLiteral && CommonUtils.checkEsqlCommentAbove(contextElement, offset)) {
             return ThreeState.NO;
         }
 

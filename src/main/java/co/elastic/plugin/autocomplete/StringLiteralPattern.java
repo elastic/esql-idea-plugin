@@ -21,6 +21,7 @@ package co.elastic.plugin.autocomplete;
 import com.intellij.lang.ASTNode;
 import com.intellij.patterns.PatternCondition;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiPlainText;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,9 +42,9 @@ public class StringLiteralPattern extends PatternCondition<PsiElement> {
             return false;
         }
 
-        // checking java text block literal and kotlin string literal
+        // checking java text block literal, kotlin string literal and plain text psi
         // (kotlin psi makes no difference between normal string and triple quotes text block)
-        return node.getElementType().equals(TEXT_BLOCK_LITERAL) || node.getElementType().toString().equals("REGULAR_STRING_PART");
+        return node.getElementType().equals(TEXT_BLOCK_LITERAL) || node.getElementType().toString().equals("REGULAR_STRING_PART") || psi instanceof PsiPlainText;
     }
 }
 
