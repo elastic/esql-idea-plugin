@@ -21,6 +21,7 @@ package co.elastic.plugin.autocomplete;
 import co.elastic.plugin.CommonUtils;
 import com.intellij.codeInsight.completion.CompletionConfidence;
 import com.intellij.lang.ASTNode;
+import com.intellij.lang.Language;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiPlainText;
@@ -41,6 +42,11 @@ public class EsqlCompletionConfidence extends CompletionConfidence {
         boolean isStringLiteral = node.getElementType().equals(TEXT_BLOCK_LITERAL)
             || node.getElementType().toString().equals("REGULAR_STRING_PART")
             || contextElement instanceof PsiPlainText;
+
+        // for kotlin, navigate up to the STRING_TEMPLATE element
+        if (contextElement.getLanguage().is(Language.findLanguageByID("kotlin"))) {
+            contextElement = contextElement.getParent().getParent();
+        }
 
         if (isStringLiteral && CommonUtils.checkEsqlCommentAbove(contextElement, offset)) {
             return ThreeState.NO;

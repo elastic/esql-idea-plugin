@@ -18,6 +18,7 @@
  */
 package co.elastic.plugin.documentation;
 
+import com.intellij.lang.Language;
 import com.intellij.model.Pointer;
 import com.intellij.platform.backend.documentation.DocumentationResult;
 import com.intellij.platform.backend.documentation.DocumentationTarget;
@@ -41,6 +42,10 @@ public class EsqlDocumentationProvider implements DocumentationTargetProvider {
     @Override
     public @NotNull List<? extends @NotNull DocumentationTarget> documentationTargets(@NotNull PsiFile psiFile, int i) {
         var elementAtOffset = psiFile.findElementAt(i);
+        // for kotlin, navigate up to the STRING_TEMPLATE element
+        if (elementAtOffset.getLanguage().is(Language.findLanguageByID("kotlin"))) {
+            elementAtOffset = elementAtOffset.getParent().getParent();
+        }
         if (elementAtOffset == null || !(elementAtOffset.getNode().getElementType().equals(TEXT_BLOCK_LITERAL)
                                          || isKotlinString(elementAtOffset)
                                          || elementAtOffset instanceof PsiPlainText)
