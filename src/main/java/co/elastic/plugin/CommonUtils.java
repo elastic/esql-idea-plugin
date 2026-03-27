@@ -232,8 +232,8 @@ public class CommonUtils {
     }
 
     public static boolean isKotlinString(PsiElement element) {
-        return Optional.ofNullable(element.getParent())
-            .map(x -> x.toString().equals("LITERAL_STRING_TEMPLATE_ENTRY"))
+        return Optional.ofNullable(element)
+            .map(x -> x.toString().equals("STRING_TEMPLATE"))
             .orElse(false);
     }
 
