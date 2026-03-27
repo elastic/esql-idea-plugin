@@ -170,10 +170,6 @@ public class CommonUtils {
                 int line = document.getLineNumber(offset);
                 if (line > 0) {
                     int prevLineStart = document.getLineStartOffset(line - 1);
-                    // kotlin has a different offset for lines
-                    if (element.getLanguage().is(Language.findLanguageByID("kotlin"))) {
-                        prevLineStart = document.getLineStartOffset(line - 2);
-                    }
                     // get the element at the end of the previous line
                     // -1 to avoid out of bounds
                     int prevLineEnd = document.getLineEndOffset(line - 1);
