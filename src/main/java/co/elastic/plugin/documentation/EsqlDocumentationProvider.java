@@ -42,7 +42,7 @@ public class EsqlDocumentationProvider implements DocumentationTargetProvider {
     @Override
     public @NotNull List<? extends @NotNull DocumentationTarget> documentationTargets(@NotNull PsiFile psiFile, int i) {
         var elementAtOffset = psiFile.findElementAt(i);
-        // for kotlin, navigate up to the STRING_TEMPLATE element for the type check
+        // for kotlin, navigate up to the STRING_TEMPLATE element
         if (elementAtOffset.getLanguage().is(Language.findLanguageByID("kotlin"))) {
             elementAtOffset = elementAtOffset.getParent().getParent();
         }

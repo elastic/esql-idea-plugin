@@ -73,6 +73,10 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             if (elementAtOffset.getLanguage().is(Language.findLanguageByID("JAVA"))) {
                 text = text.substring(3);
             }
+            // for kotlin, navigate up to the STRING_TEMPLATE element
+            if (elementAtOffset.getLanguage().is(Language.findLanguageByID("kotlin"))) {
+                elementAtOffset = elementAtOffset.getParent().getParent();
+            }
         }
 
         if (!checkEsqlCommentAbove(elementAtOffset, caretOffset)) {
