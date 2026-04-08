@@ -2,7 +2,7 @@
 
 # Elasticsearch ES|QL Intellij IDEA Plugin
 
-Experimental plugin enabling autocompletion, syntax check and documentation for [ES|QL](https://www.elastic.co/docs/reference/query-languages/esql) queries in Intellij IDEA for Java and Kotlin. 
+Experimental plugin enabling autocompletion, syntax check, documentation and execution for [ES|QL](https://www.elastic.co/docs/reference/query-languages/esql) queries in Intellij IDEA for Java, Kotlin and text files.
 
 ## Activation
 

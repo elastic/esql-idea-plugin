@@ -23,7 +23,6 @@ import java.io.IOException
 import java.net.URL
 import java.util.stream.Collectors
 
-// TODO gradle task to fetch and format docs
 // TODO stats-by should be renamed to stats
 
 plugins {
@@ -34,7 +33,7 @@ plugins {
 }
 
 group = "co.elastic"
-version = "1.0.0-SNAPSHOT"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -69,9 +68,8 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "242"
         }
-
         changeNotes = """
-          Updating resources to be compliant with guidelines
+          Added query execution functionalities, better autocompletion, better server connection options. 
         """
     }
 }
