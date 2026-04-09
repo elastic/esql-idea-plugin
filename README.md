@@ -4,6 +4,8 @@
 
 Experimental plugin enabling autocompletion, syntax check, documentation and execution for [ES|QL](https://www.elastic.co/docs/reference/query-languages/esql) queries in Intellij IDEA for Java, Kotlin and text files.
 
+Now available in the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/28898-elasticsearch-es-ql)!
+
 ## Activation
 
 Comment `// ES|QL` above a text block (triple quotes) and the string will be identified as an ES|QL query.
