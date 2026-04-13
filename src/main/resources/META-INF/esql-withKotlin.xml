@@ -1,0 +1,5 @@
+<idea-plugin>
+  <extensions defaultExtensionNs="com.intellij">
+    <annotator language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
+  </extensions>
+</idea-plugin>

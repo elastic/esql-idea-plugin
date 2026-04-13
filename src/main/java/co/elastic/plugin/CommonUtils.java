@@ -25,18 +25,14 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiPlainText;
 import com.intellij.psi.TokenType;
-import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 public class CommonUtils {
 
@@ -240,14 +236,11 @@ public class CommonUtils {
             return false;
         }
 
-        // it's a literal expression
-        // PsiLiteralExpression for java
-        if (element instanceof PsiLiteralExpression) {
-            // it's a text block (triple quote)
-            if (((PsiJavaTokenImpl) element.getFirstChild()).getElementType().equals(TEXT_BLOCK_LITERAL)) {
-
-                return checkEsqlCommentAbove(element);
-            }
+        // it's a literal expression (Java text block with triple quotes)
+        PsiElement firstChild = element.getFirstChild();
+        if (firstChild != null && firstChild.getNode() != null
+            && "TEXT_BLOCK_LITERAL".equals(firstChild.getNode().getElementType().toString())) {
+            return checkEsqlCommentAbove(element);
         }
 
         // STRING_TEMPLATE to match kotlin triple quote
