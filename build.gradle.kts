@@ -77,7 +77,9 @@ intellijPlatform {
 dependencies {
     implementation("org.antlr:antlr4:4.13.1")
     testImplementation("junit:junit:4.13.2")
-    implementation("co.elastic.clients:elasticsearch-java:9.3.4")
+    implementation("co.elastic.clients:elasticsearch-java:9.3.4") {
+        exclude(group = "org.slf4j")
+    }
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation(project(":antlr"))
 }
