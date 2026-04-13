@@ -37,7 +37,8 @@
        Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.lang</depends>
-  <depends>com.intellij.java</depends>
+  <depends optional="true" config-file="esql-withJava.xml">com.intellij.java</depends>
+  <depends optional="true" config-file="esql-withKotlin.xml">org.jetbrains.kotlin</depends>
 
   <!-- Extension points defined by the plugin.
        Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
@@ -54,8 +55,6 @@
       language="any"
       order="first"
     />
-    <annotator language="JAVA" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
-    <annotator language="kotlin" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
     <annotator language="TEXT" implementationClass="co.elastic.plugin.annotator.EsqlAnnotator"/>
 
     <platform.backend.documentation.targetProvider order="first" implementation="co.elastic.plugin.documentation.EsqlDocumentationProvider"/>

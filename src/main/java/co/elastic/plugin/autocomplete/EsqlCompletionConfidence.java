@@ -28,8 +28,6 @@ import com.intellij.psi.PsiPlainText;
 import com.intellij.util.ThreeState;
 import org.jetbrains.annotations.NotNull;
 
-import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
-
 public class EsqlCompletionConfidence extends CompletionConfidence {
 
     @Override
@@ -39,8 +37,9 @@ public class EsqlCompletionConfidence extends CompletionConfidence {
             return ThreeState.UNSURE;
         }
 
-        boolean isStringLiteral = node.getElementType().equals(TEXT_BLOCK_LITERAL)
-            || node.getElementType().toString().equals("REGULAR_STRING_PART")
+        String elementType = node.getElementType().toString();
+        boolean isStringLiteral = "TEXT_BLOCK_LITERAL".equals(elementType)
+            || "REGULAR_STRING_PART".equals(elementType)
             || contextElement instanceof PsiPlainText;
 
         // for kotlin, navigate up to the STRING_TEMPLATE element

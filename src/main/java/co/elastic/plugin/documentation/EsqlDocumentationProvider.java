@@ -34,7 +34,6 @@ import java.util.List;
 import static co.elastic.plugin.CommonUtils.ESQL_SEPARATORS;
 import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
 import static co.elastic.plugin.CommonUtils.isKotlinString;
-import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
 
 @SuppressWarnings("UnstableApiUsage")
 public class EsqlDocumentationProvider implements DocumentationTargetProvider {
@@ -46,7 +45,7 @@ public class EsqlDocumentationProvider implements DocumentationTargetProvider {
         if (elementAtOffset.getLanguage().is(Language.findLanguageByID("kotlin"))) {
             elementAtOffset = elementAtOffset.getParent().getParent();
         }
-        if (elementAtOffset == null || !(elementAtOffset.getNode().getElementType().equals(TEXT_BLOCK_LITERAL)
+        if (elementAtOffset == null || !("TEXT_BLOCK_LITERAL".equals(elementAtOffset.getNode().getElementType().toString())
                                          || isKotlinString(elementAtOffset)
                                          || elementAtOffset instanceof PsiPlainText)
             || !checkEsqlCommentAbove(elementAtOffset, i)) {

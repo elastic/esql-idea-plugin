@@ -25,8 +25,6 @@ import com.intellij.psi.PsiPlainText;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
 
-import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
-
 public class StringLiteralPattern extends PatternCondition<PsiElement> {
 
     public StringLiteralPattern() {
@@ -38,13 +36,15 @@ public class StringLiteralPattern extends PatternCondition<PsiElement> {
 
         ASTNode node = psi.getNode();
         if (node == null) {
-            System.out.println("No node found");
             return false;
         }
 
         // checking java text block literal, kotlin string literal and plain text psi
         // (kotlin psi makes no difference between normal string and triple quotes text block)
-        return node.getElementType().equals(TEXT_BLOCK_LITERAL) || node.getElementType().toString().equals("REGULAR_STRING_PART") || psi instanceof PsiPlainText;
+        String elementType = node.getElementType().toString();
+        return "TEXT_BLOCK_LITERAL".equals(elementType)
+            || "REGULAR_STRING_PART".equals(elementType)
+            || psi instanceof PsiPlainText;
     }
 }
 

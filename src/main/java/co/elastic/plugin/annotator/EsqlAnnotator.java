@@ -31,11 +31,7 @@ import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiLiteralExpression;
 import com.intellij.psi.PsiPlainText;
-import com.intellij.psi.TokenType;
-import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
-import com.intellij.psi.tree.IElementType;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.jetbrains.annotations.NotNull;
@@ -52,11 +48,8 @@ import static co.elastic.plugin.CommonUtils.ESQL_SEPARATORS;
 import static co.elastic.plugin.CommonUtils.FUNCTIONS;
 import static co.elastic.plugin.CommonUtils.PROCESSING_COMMANDS;
 import static co.elastic.plugin.CommonUtils.SOURCE_COMMANDS;
-import static co.elastic.plugin.CommonUtils.checkEsqlCommentAbove;
 import static co.elastic.plugin.CommonUtils.findEsqlBlocksInPlainText;
 import static co.elastic.plugin.CommonUtils.isEsqlTextBlock;
-import static com.intellij.psi.JavaTokenType.TEXT_BLOCK_LITERAL;
-
 /**
  * Checks the query syntax and underlines errors.
  */
