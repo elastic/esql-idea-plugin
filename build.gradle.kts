@@ -33,7 +33,7 @@ plugins {
 }
 
 group = "co.elastic"
-version = "1.0.1"
+version = "1.0.2"
 
 repositories {
     mavenCentral()
@@ -69,7 +69,7 @@ intellijPlatform {
             sinceBuild = "242"
         }
         changeNotes = """
-          Added query execution functionalities, better autocompletion, better server connection options. 
+          Made Java and Kotlin language feature optional. 
         """
     }
 }
