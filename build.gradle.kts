@@ -33,7 +33,7 @@ plugins {
 }
 
 group = "co.elastic"
-version = "1.0.2"
+version = "1.0.3"
 
 repositories {
     mavenCentral()
@@ -69,7 +69,7 @@ intellijPlatform {
             sinceBuild = "242"
         }
         changeNotes = """
-          Made Java and Kotlin language feature optional. 
+          Plugin now compatible with elasticsearch 8.x server instances.
         """
     }
 }
