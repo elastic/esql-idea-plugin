@@ -23,6 +23,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch.esql.EsqlFormat;
 import co.elastic.clients.elasticsearch.esql.QueryRequest;
 import co.elastic.clients.transport.endpoints.BinaryResponse;
+import co.elastic.plugin.CommonUtils;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,10 +59,7 @@ public class EsqlQueryExecutor {
                                          "Elasticsearch panel.");
         }
 
-        try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-            .host(serverUrl)
-            .apiKey(apiKey)
-        )) {
+        try (ElasticsearchClient client = CommonUtils.createClientInstance(serverUrl,apiKey)) {
 
             BinaryResponse response = client.esql()
                 .query(QueryRequest.of(q -> q.query(query).format(EsqlFormat.Json)));

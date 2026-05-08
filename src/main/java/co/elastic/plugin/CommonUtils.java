@@ -18,6 +18,7 @@
  */
 package co.elastic.plugin;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.intellij.lang.Language;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
@@ -249,5 +250,16 @@ public class CommonUtils {
         }
 
         return false;
+    }
+
+    public static ElasticsearchClient createClientInstance(String url, String apikey) {
+        return ElasticsearchClient.of(b -> b
+            .host(url)
+            .apiKey(apikey)
+            .transportOptions(t -> t
+                .setHeader("Content-Type", "application/vnd.elasticsearch+json; compatible-with=8")
+                .setHeader("Accept", "application/vnd.elasticsearch+json; compatible-with=8")
+            )
+        );
     }
 }

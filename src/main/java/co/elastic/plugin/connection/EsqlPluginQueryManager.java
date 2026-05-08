@@ -21,6 +21,7 @@ package co.elastic.plugin.connection;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
+import co.elastic.plugin.CommonUtils;
 import co.elastic.plugin.settings.EsqlConnection;
 import co.elastic.plugin.settings.EsqlPluginSettings;
 import com.intellij.openapi.application.ApplicationManager;
@@ -43,10 +44,12 @@ public final class EsqlPluginQueryManager implements EsqlSchemaProvider {
         final ConcurrentHashMap<String, List<String>> indicesAndFields = new ConcurrentHashMap<>();
     }
 
-    public record CachedResult(String query, EsqlQueryResult result, long elapsedMs) {}
+    public record CachedResult(String query, EsqlQueryResult result, long elapsedMs) {
+    }
 
     private final ScheduledExecutorService scheduler = AppExecutorUtil.getAppScheduledExecutorService();
-    private final EsqlPluginSettings settings = ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
+    private final EsqlPluginSettings settings =
+        ApplicationManager.getApplication().getService(EsqlPluginSettings.class);
     private final ConcurrentHashMap<String, ConnectionState> activeConnections = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<CachedResult>> cachedResults = new ConcurrentHashMap<>();
 
@@ -109,10 +112,7 @@ public final class EsqlPluginQueryManager implements EsqlSchemaProvider {
         if (conn == null || conn.serverUrl.isEmpty() || conn.apiKey.isEmpty()) {
             return "URL and API key are required";
         }
-        try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-            .host(conn.serverUrl)
-            .apiKey(conn.apiKey)
-        )) {
+        try (ElasticsearchClient client = CommonUtils.createClientInstance(conn.serverUrl, conn.apiKey)) {
             client.ping();
             return null;
         } catch (ElasticsearchException e) {
@@ -155,10 +155,8 @@ public final class EsqlPluginQueryManager implements EsqlSchemaProvider {
 
     private void startQueryThreadPool(String connectionName, EsqlConnection conn, ConnectionState state) {
         state.task = scheduler.scheduleWithFixedDelay(() -> {
-            try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-                .host(conn.serverUrl)
-                .apiKey(conn.apiKey)
-            )) {
+            try (ElasticsearchClient client = CommonUtils.createClientInstance(conn.serverUrl,conn.apiKey)) {
+
                 List<String> indices = client.indices().get(g -> g.index("*"))
                     .indices().keySet().stream()
                     .filter(x -> !x.startsWith(".internal") && !x.startsWith(".ds"))
