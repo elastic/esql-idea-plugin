@@ -20,6 +20,7 @@ package co.elastic.plugin.settings;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.plugin.CommonUtils;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.ValidationInfo;
@@ -133,10 +134,7 @@ public class EsqlConnectionDialog extends DialogWrapper {
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
             protected String doInBackground() {
-                try (ElasticsearchClient client = ElasticsearchClient.of(b -> b
-                    .host(serverUrl)
-                    .apiKey(apiKey)
-                )) {
+                try (ElasticsearchClient client = CommonUtils.createClientInstance(serverUrl,apiKey)) {
                     client.ping();
                     return null;
                 } catch (ElasticsearchException e) {
