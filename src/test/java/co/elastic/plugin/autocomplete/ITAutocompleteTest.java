@@ -167,7 +167,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(21, elements.length);
+        Assert.assertEquals(29, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -314,7 +314,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(21, elements.length);
+        Assert.assertEquals(29, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -503,7 +503,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(21, elements.length);
+        Assert.assertEquals(29, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();

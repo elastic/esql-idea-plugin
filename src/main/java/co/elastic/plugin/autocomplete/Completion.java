@@ -192,6 +192,8 @@ public record Completion(String text, Kind kind) {
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_fieldName);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_fieldNamePattern);
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadataSource);
+        // subqueries open with LP, which would otherwise be completed as the start of a function call
+        codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_subquery);
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
     }
