@@ -106,6 +106,38 @@ public class AutoCompleteTest {
     }
 
     @Test
+    public void testCommandsAddedInGrammar95AfterPipe() {
+        var completions = Completion.computeCompletions("FROM index | ", null);
+        for (String command : List.of("URI_PARTS", "REGISTERED_DOMAIN", "USER_AGENT", "IP_LOCATION",
+            "METRICS_INFO", "TS_INFO", "TS_COLLAPSE", "MMR")) {
+            Assert.assertTrue("Missing command: " + command,
+                completions.contains(new Completion(command, Completion.Kind.KEYWORD)));
+        }
+    }
+
+    @Test
+    public void testDevOnlyCommandsNotSuggested() {
+        var completions = Completion.computeCompletions("FROM index | ", null);
+        for (String command : List.of("DEDUP", "HIGHLIGHT", "EXTERNAL")) {
+            Assert.assertFalse("Dev-only command suggested: " + command,
+                completions.contains(new Completion(command, Completion.Kind.KEYWORD)));
+        }
+    }
+
+    /**
+     * A subquery can open with "(" after FROM, which must not be completed as the start of a function call.
+     */
+    @Test
+    public void testNoFunctionsWhereOnlySubqueryCanStart() {
+        for (String query : List.of("FROM ", "FROM index1, ")) {
+            var completions = Completion.computeCompletions(query, null);
+            Assert.assertTrue(completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER)));
+            Assert.assertTrue("Unexpected function completions for: " + query,
+                completions.stream().noneMatch(c -> c.kind() == Completion.Kind.FUNCTION));
+        }
+    }
+
+    @Test
     public void testCompletionsAfterWhere() {
         var completions = Completion.computeCompletions("FROM index | WHERE ", null);
 
