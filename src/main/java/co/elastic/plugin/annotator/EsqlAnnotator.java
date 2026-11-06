@@ -37,11 +37,14 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EmptyStackException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static co.elastic.plugin.CommonUtils.ESQL_SEPARATORS;
@@ -172,23 +175,9 @@ public class EsqlAnnotator implements Annotator {
         TextRange wholeStringRange = new TextRange(startingPosition, endingPosition);
 
         try {
-            InputStream stream = new ByteArrayInputStream(query.getBytes(StandardCharsets.UTF_8));
-            EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromStream(stream, StandardCharsets.UTF_8));
+            List<EsqlErrorListener.Error> errors = validate(query);
 
-            EsqlBaseParser parser = new EsqlBaseParser(new CommonTokenStream(lexer));
-
-            parser.setBuildParseTree(false);
-            EsqlErrorListener errorListener = new EsqlErrorListener(new ArrayList<>());
-
-            lexer.removeErrorListeners();
-            lexer.addErrorListener(errorListener);
-            parser.removeErrorListeners();
-            parser.addErrorListener(errorListener);
-
-            // rule check
-            parser.singleStatement();
-
-            for (EsqlErrorListener.Error error : errorListener.errors) {
+            for (EsqlErrorListener.Error error : errors) {
 
                 // need to retrieve specific line where error is
                 int absoluteCharPosition = calculateAbsoluteCharPosition(error, element, startingPosition);
@@ -224,6 +213,37 @@ public class EsqlAnnotator implements Annotator {
                     "\nmessage: " + e.getMessage())
                 .range(wholeStringRange).create();
         }
+    }
+
+    /**
+     * Lex and parse the query, collecting the syntax errors. A closing token without a matching opening one
+     * makes the lexer pop an empty mode stack; that is reported as an "unbalanced" error at the stray
+     * character, keeping the errors collected before it.
+     */
+    static List<EsqlErrorListener.Error> validate(String query) throws IOException {
+        InputStream stream = new ByteArrayInputStream(query.getBytes(StandardCharsets.UTF_8));
+        EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromStream(stream, StandardCharsets.UTF_8));
+
+        EsqlBaseParser parser = new EsqlBaseParser(new CommonTokenStream(lexer));
+
+        parser.setBuildParseTree(false);
+        EsqlErrorListener errorListener = new EsqlErrorListener(new ArrayList<>());
+
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+
+        try {
+            // rule check
+            parser.singleStatement();
+        } catch (EmptyStackException e) {
+            // thrown by popMode in the lexer; the lexer has already consumed the stray closing character
+            String stray = lexer.getText();
+            errorListener.errors.add(new EsqlErrorListener.Error("unbalanced '" + stray + "'",
+                lexer.getLine(), lexer.getCharPositionInLine() - stray.length(), Optional.of(stray)));
+        }
+        return errorListener.errors;
     }
 
     private int calculateAbsoluteCharPosition(EsqlErrorListener.Error error, PsiElement element,

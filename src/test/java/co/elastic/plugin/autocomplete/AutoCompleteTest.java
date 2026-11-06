@@ -238,4 +238,11 @@ public class AutoCompleteTest {
         Assert.assertTrue(completions.contains(new Completion("{string}", Completion.Kind.PLACEHOLDER)));
     }
 
+
+    @Test
+    public void testUnbalancedClosingTokenYieldsNoCompletions() {
+        Assert.assertTrue(Completion.computeCompletions("ROW a = 1)", null).isEmpty());
+        Assert.assertTrue(Completion.computeCompletions("FROM a | WHERE x IN (1))", null).isEmpty());
+        Assert.assertTrue(Completion.computeCompletions("ROW a = 1]", null).isEmpty());
+    }
 }

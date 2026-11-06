@@ -83,7 +83,11 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             return;
         }
 
-        var parserInfo = Parser.parse(text);
+        var maybeParserInfo = Parser.parse(text);
+        if (maybeParserInfo.isEmpty()) {
+            return;
+        }
+        var parserInfo = maybeParserInfo.get();
         var completions = Completion.computeCompletions(parserInfo, queryManager);
         var lastToken = parserInfo.tokens().getLast();
         for (Completion c : completions) {
