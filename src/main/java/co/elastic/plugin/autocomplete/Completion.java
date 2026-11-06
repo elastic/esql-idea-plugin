@@ -44,8 +44,9 @@ public record Completion(String text, Kind kind) {
     }
 
     static Set<Completion> computeCompletions(String text, EsqlSchemaProvider queryManager) {
-        var parserInfo = Parser.parse(text);
-        return computeCompletions(parserInfo, queryManager);
+        return Parser.parse(text)
+            .map(parserInfo -> computeCompletions(parserInfo, queryManager))
+            .orElseGet(Set::of);
     }
 
     static Set<Completion> computeCompletions(Parser.ParserInfo parserInfo, EsqlSchemaProvider queryManager) {

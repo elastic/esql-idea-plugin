@@ -195,6 +195,25 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
 
     }
 
+    public void testNoCompletionsAfterUnbalancedParenJava() {
+        myFixture.configureByText("TestJava.java", """
+            package co.elastic.plugin;
+
+            public class TestJava {
+                public static void main(String[] args) {
+                // ES|QL
+                String a = ""\"
+                        ROW a = 1)<caret>
+                        ""\";
+                    }
+            }
+            """);
+
+        // must not throw; no lookup (null) or an empty one are both fine
+        LookupElement[] elements = myFixture.completeBasic();
+        Assert.assertTrue(elements == null || elements.length == 0);
+    }
+
     public void testCompletionsKotlin() {
         // <caret> is a special symbol, allowing to move the cursor and
         // type at the desired offset

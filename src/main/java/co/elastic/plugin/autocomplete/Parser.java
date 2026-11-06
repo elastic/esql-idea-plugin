@@ -27,13 +27,27 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
 
 import java.util.ArrayList;
+import java.util.EmptyStackException;
 import java.util.List;
+import java.util.Optional;
 
 
 public class Parser {
     public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, List<String> queriedIndexes) {}
 
-    public static Parser.ParserInfo parse(String query) {
+    /**
+     * Parses the query for completion. Returns empty when the lexer fails on an unbalanced closing token
+     * (such as an extra ')'): its popMode throws EmptyStackException, and there is nothing to complete.
+     */
+    public static Optional<Parser.ParserInfo> parse(String query) {
+        try {
+            return Optional.of(doParse(query));
+        } catch (EmptyStackException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static Parser.ParserInfo doParse(String query) {
         EsqlConfig config = new EsqlConfig(false);
         EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromString(query));
         lexer.removeErrorListeners();
