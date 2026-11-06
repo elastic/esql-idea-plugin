@@ -31,10 +31,11 @@ import java.util.List;
 
 
 public class Parser {
-    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, List<String> queriedIndexes) {}
+    public record ParserInfo(EsqlBaseParser parser, List<Token> tokens, List<String> queriedIndexes,
+                             boolean devSyntax) {}
 
-    public static Parser.ParserInfo parse(String query) {
-        EsqlConfig config = new EsqlConfig(false);
+    public static Parser.ParserInfo parse(String query, boolean devSyntax) {
+        EsqlConfig config = new EsqlConfig(devSyntax);
         EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromString(query));
         lexer.removeErrorListeners();
         lexer.setEsqlConfig(config);
@@ -61,6 +62,6 @@ public class Parser {
         // Reset the parser so CodeCompletionCore can use the ATN from the start
         parser.reset();
 
-        return new ParserInfo(parser, tokens, queriedIndexes);
+        return new ParserInfo(parser, tokens, queriedIndexes, devSyntax);
     }
 }

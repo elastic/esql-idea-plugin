@@ -19,6 +19,8 @@
 package co.elastic.plugin.autocomplete;
 
 import co.elastic.plugin.connection.EsqlSchemaProvider;
+import co.elastic.plugin.version.GrammarVersion;
+import co.elastic.plugin.version.Selection;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -78,6 +80,15 @@ public class AutoCompleteTest {
         for (String opt : METADATA_OPTIONS) {
             Assert.assertTrue("Missing metadata option: " + opt, texts.contains(opt));
         }
+    }
+
+    @Test
+    public void testDevOnlyCommandSuggestedWhenDevSyntaxOn() {
+        var version = new GrammarVersion("9.5", "9.5", false);
+        var on = Completion.computeCompletions("FROM index | ", null, new Selection(version, true, null));
+        var off = Completion.computeCompletions("FROM index | ", null, new Selection(version, false, null));
+        Assert.assertTrue(on.contains(new Completion("DEDUP", Completion.Kind.KEYWORD)));
+        Assert.assertFalse(off.contains(new Completion("DEDUP", Completion.Kind.KEYWORD)));
     }
 
     @Test

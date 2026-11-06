@@ -55,10 +55,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class CodeCompletionCore {
-    private static Map<String, Map<Integer, FollowSetsHolder>> followSetsByATN = new HashMap<>();
+    private static Map<String, Map<Integer, FollowSetsHolder>> followSetsByATN =
+        new ConcurrentHashMap<>();
 
     private static String[] atnStateTypeMap = {
         "invalid",
@@ -92,6 +94,12 @@ public class CodeCompletionCore {
     private String[] ruleNames;
     private List<Token> tokens;
     private List<Integer> precedenceStack;
+
+    /**
+     * Follow sets are cached per parser class, and they depend on how the grammar predicates evaluate.
+     * Parsers whose predicates can differ (for example dev-only syntax on or off) must use different values.
+     */
+    public String predicateContext = "";
 
     private int tokenStartIndex = 0;
     private int statesProcessed = 0;
@@ -345,7 +353,7 @@ public class CodeCompletionCore {
     private Set<Integer> processRule(RuleStartState startState, int tokenListIndex,
                                      List<RuleWithStartToken> callStack, int precedence, int indentation) {
         Map<Integer, Set<Integer>> positionMap = shortcutMap.computeIfAbsent(
-            startState.ruleIndex, k -> new HashMap<>());
+            startState.ruleIndex, k -> new ConcurrentHashMap<>());
 
         if (positionMap.containsKey(tokenListIndex)) {
             if (showDebugOutput) {
@@ -357,7 +365,7 @@ public class CodeCompletionCore {
         Set<Integer> result = new HashSet<>();
 
         Map<Integer, FollowSetsHolder> setsPerState = followSetsByATN.computeIfAbsent(
-            parser.getClass().getName(), k -> new HashMap<>());
+            parser.getClass().getName() + ":" + predicateContext, k -> new ConcurrentHashMap<>());
 
         FollowSetsHolder followSets = setsPerState.get(startState.stateNumber);
         if (followSets == null) {

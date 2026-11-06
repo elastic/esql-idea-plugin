@@ -20,8 +20,10 @@ package co.elastic.plugin.annotator;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.grammar.EsqlBaseParser;
+import co.elastic.grammar.EsqlConfig;
 import co.elastic.plugin.EsqlIcon;
 import co.elastic.plugin.EsqlRunIcon;
+import co.elastic.plugin.version.GrammarSelection;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -36,9 +38,6 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -172,23 +171,7 @@ public class EsqlAnnotator implements Annotator {
         TextRange wholeStringRange = new TextRange(startingPosition, endingPosition);
 
         try {
-            InputStream stream = new ByteArrayInputStream(query.getBytes(StandardCharsets.UTF_8));
-            EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromStream(stream, StandardCharsets.UTF_8));
-
-            EsqlBaseParser parser = new EsqlBaseParser(new CommonTokenStream(lexer));
-
-            parser.setBuildParseTree(false);
-            EsqlErrorListener errorListener = new EsqlErrorListener(new ArrayList<>());
-
-            lexer.removeErrorListeners();
-            lexer.addErrorListener(errorListener);
-            parser.removeErrorListeners();
-            parser.addErrorListener(errorListener);
-
-            // rule check
-            parser.singleStatement();
-
-            for (EsqlErrorListener.Error error : errorListener.errors) {
+            for (EsqlErrorListener.Error error : validate(query, GrammarSelection.current().devSyntax())) {
 
                 // need to retrieve specific line where error is
                 int absoluteCharPosition = calculateAbsoluteCharPosition(error, element, startingPosition);
@@ -224,6 +207,26 @@ public class EsqlAnnotator implements Annotator {
                     "\nmessage: " + e.getMessage())
                 .range(wholeStringRange).create();
         }
+    }
+
+    static List<EsqlErrorListener.Error> validate(String query, boolean devSyntax) {
+        EsqlBaseLexer lexer = new EsqlBaseLexer(CharStreams.fromString(query));
+        EsqlBaseParser parser = new EsqlBaseParser(new CommonTokenStream(lexer));
+
+        EsqlConfig config = new EsqlConfig(devSyntax);
+        lexer.setEsqlConfig(config);
+        parser.setEsqlConfig(config);
+        parser.setBuildParseTree(false);
+        EsqlErrorListener errorListener = new EsqlErrorListener(new ArrayList<>());
+
+        lexer.removeErrorListeners();
+        lexer.addErrorListener(errorListener);
+        parser.removeErrorListeners();
+        parser.addErrorListener(errorListener);
+
+        // rule check
+        parser.singleStatement();
+        return errorListener.errors;
     }
 
     private int calculateAbsoluteCharPosition(EsqlErrorListener.Error error, PsiElement element,

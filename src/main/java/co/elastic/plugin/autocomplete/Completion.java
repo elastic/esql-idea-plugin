@@ -22,6 +22,8 @@ import co.elastic.grammar.EsqlBaseParser;
 import co.elastic.grammar.completion.CodeCompletionCore;
 import co.elastic.grammar.completion.CodeCompletionCore.CandidatesCollection;
 import co.elastic.plugin.connection.EsqlSchemaProvider;
+import co.elastic.plugin.version.GrammarVersion;
+import co.elastic.plugin.version.Selection;
 import org.antlr.v4.runtime.Token;
 
 import java.util.HashSet;
@@ -43,8 +45,15 @@ public record Completion(String text, Kind kind) {
         FIELD,
     }
 
+    /** Version 9.5 with dev-only syntax off. Does not need a running IDE. */
     static Set<Completion> computeCompletions(String text, EsqlSchemaProvider queryManager) {
-        var parserInfo = Parser.parse(text);
+        return computeCompletions(text, queryManager,
+            new Selection(new GrammarVersion("9.5", "9.5", false), false, null));
+    }
+
+    static Set<Completion> computeCompletions(String text, EsqlSchemaProvider queryManager,
+                                              Selection selection) {
+        var parserInfo = Parser.parse(text, selection.devSyntax());
         return computeCompletions(parserInfo, queryManager);
     }
 
@@ -54,7 +63,8 @@ public record Completion(String text, Kind kind) {
         int caretTokenIndex = caretToken != null ? caretToken.getTokenIndex() : 0;
         var candidates = completionCandidates(parserInfo);
         Set<Completion> completions = new HashSet<>();
-        completions.addAll(computeTokenCompletions(candidates, caretTokenIndex, tokens));
+        completions.addAll(computeTokenCompletions(candidates, caretTokenIndex, tokens,
+            parserInfo.devSyntax()));
         completions.addAll(computeSchemaDependentCompletions(parserInfo, candidates, queryManager,
             caretTokenIndex, tokens));
         return completions;
@@ -80,7 +90,8 @@ public record Completion(String text, Kind kind) {
     }
 
     private static Set<Completion> computeTokenCompletions(CandidatesCollection candidates,
-                                                           int caretTokenIndex, List<Token> allTokens) {
+                                                           int caretTokenIndex, List<Token> allTokens,
+                                                           boolean devSyntax) {
         Set<Completion> completions = new HashSet<>();
 
         if (isRuleAlreadyUsed(candidates, EsqlBaseParser.RULE_indexPattern, caretTokenIndex,
@@ -141,8 +152,10 @@ public record Completion(String text, Kind kind) {
                     break;
                 default:
                     String display = EsqlBaseParser.VOCABULARY.getDisplayName(tokenType);
-                    if (display != null && !display.isEmpty() && !display.startsWith("DEV_")) {
-                        String tokenText = display.replaceAll("'", "").toUpperCase(Locale.ROOT);
+                    boolean devToken = display != null && display.startsWith("DEV_");
+                    if (display != null && !display.isEmpty() && (!devToken || devSyntax)) {
+                        String tokenText = (devToken ? display.substring("DEV_".length()) : display)
+                            .replaceAll("'", "").toUpperCase(Locale.ROOT);
                         completions.add(new Completion(tokenText, Kind.KEYWORD));
                     }
             }
@@ -194,6 +207,7 @@ public record Completion(String text, Kind kind) {
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_metadataSource);
         // subqueries open with LP, which would otherwise be completed as the start of a function call
         codeCompletionCode.preferredRules.add(EsqlBaseParser.RULE_subquery);
+        codeCompletionCode.predicateContext = parserInfo.devSyntax() ? "dev" : "release";
         var caretIndex = tokens.size() - 1;
         return codeCompletionCode.collectCandidates(caretIndex, null);
     }

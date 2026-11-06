@@ -176,6 +176,12 @@ public class EsqlGrammar95Tests {
         }
     }
 
+    @Test
+    public void testDevOnlySyntaxFollowsSetting() {
+        Assert.assertTrue(EsqlAnnotator.validate("FROM foo | DEDUP", true).isEmpty());
+        Assert.assertFalse(EsqlAnnotator.validate("FROM foo | DEDUP", false).isEmpty());
+    }
+
     /**
      * The lexer rewinds after looking ahead for a subquery after IN (. The error position of tokens that follow
      * must be unaffected by that.
