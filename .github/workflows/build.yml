@@ -1,0 +1,90 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Test and build plugin
+        run: ./gradlew --no-daemon build buildPlugin
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests
+            build/test-results
+          if-no-files-found: ignore
+
+      - name: Name plugin zip after git describe
+        run: |
+          shopt -s nullglob
+          zips=(build/distributions/*.zip)
+          if [ "${#zips[@]}" -ne 1 ]; then
+            echo "Expected exactly one plugin zip, found ${#zips[@]}: ${zips[*]}" >&2
+            exit 1
+          fi
+          version="$(git describe --tags --always)"
+          mkdir dist
+          cp "${zips[0]}" "dist/esql-idea-plugin-${version}.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: esql-idea-plugin
+          path: dist/*.zip
+          if-no-files-found: error
+
+  snapshot-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download plugin artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: esql-idea-plugin
+          path: dist
+
+      - name: Publish rolling main release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: main-snapshot
+          name: Main Snapshot
+          prerelease: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
+          artifacts: "dist/**/*.zip"
+          body: |
+            Rolling snapshot build from `main`.
+            Commit: ${{ github.sha }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
