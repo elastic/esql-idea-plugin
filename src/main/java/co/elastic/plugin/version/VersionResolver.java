@@ -40,12 +40,12 @@ public final class VersionResolver {
             if (local != null) {
                 return new Selection(local, dev, null);
             }
-            return new Selection(newest, dev, "local build not available, using " + newest.id());
+            return new Selection(newest, dev, using("local build not available", newest));
         }
         if (!AUTO.equals(setting)) {
             GrammarVersion chosen = find(released, setting);
             if (chosen == null) {
-                return new Selection(newest, dev, "unknown version " + setting + ", using " + newest.id());
+                return new Selection(newest, dev, using("unknown version " + setting, newest));
             }
             return new Selection(chosen, dev, mismatchNote(chosen, detected));
         }
@@ -55,40 +55,57 @@ public final class VersionResolver {
     private static Selection autoSelect(ServerInfo detected, List<GrammarVersion> released,
                                         GrammarVersion newest, boolean dev) {
         if (detected == null) {
-            return new Selection(newest, dev, "no connection, using " + newest.id());
+            return new Selection(newest, dev, using("no connection", newest));
         }
         // serverless runs ES|QL newer than any release, whatever version number it reports
         if (detected.serverless()) {
-            return new Selection(newest, dev, "serverless, using " + newest.id());
+            return new Selection(newest, dev, using("serverless", newest));
         }
         String number = detected.number();
-        Matcher m = number == null ? null : VERSION.matcher(number.trim());
-        if (m == null || !m.matches()) {
-            return new Selection(newest, dev, "version unknown, using " + newest.id());
+        MajorMinor parsed = parseMajorMinor(number);
+        if (parsed == null) {
+            return new Selection(newest, dev, using("version unknown", newest));
         }
-        int major = Integer.parseInt(m.group(1));
+        int major = Integer.parseInt(parsed.major());
         if (major < 9) {
             GrammarVersion oldest = released.get(0);
             return new Selection(oldest, dev,
-                    "server " + number + " is older than " + oldest.id() + ", using " + oldest.id() + " (approximate)");
+                    using("server " + number + " is older than " + oldest.id(), oldest) + " (approximate)");
         }
-        GrammarVersion same = major == 9 ? find(released, major + "." + m.group(2)) : null;
+        GrammarVersion same = major == 9 ? find(released, major + "." + parsed.minor()) : null;
         if (same == null) {
             return new Selection(newest, dev,
-                    "server " + number + " is newer than supported, using " + newest.id());
+                    using("server " + number + " is newer than supported", newest));
         }
-        return new Selection(same, dev, "server " + number + ", using " + same.id());
+        return new Selection(same, dev, using("server " + number, same));
     }
 
     private static String mismatchNote(GrammarVersion chosen, ServerInfo detected) {
         if (detected == null || detected.number() == null || detected.number().isEmpty()) {
             return null;
         }
-        Matcher m = VERSION.matcher(detected.number().trim());
-        if (m.matches() && (m.group(1) + "." + m.group(2)).equals(chosen.id())) {
+        MajorMinor parsed = parseMajorMinor(detected.number());
+        if (parsed != null && (parsed.major() + "." + parsed.minor()).equals(chosen.id())) {
             return null;
         }
-        return "server " + detected.number() + ", using " + chosen.id() + " as selected";
+        return using("server " + detected.number(), chosen) + " as selected";
+    }
+
+    /** The major and minor digits of a version number such as "9.4.0-rc1", as written. */
+    private record MajorMinor(String major, String minor) {}
+
+    /** The major and minor of a version number, or null when it is null or not a version number. */
+    private static MajorMinor parseMajorMinor(String number) {
+        if (number == null) {
+            return null;
+        }
+        Matcher m = VERSION.matcher(number.trim());
+        return m.matches() ? new MajorMinor(m.group(1), m.group(2)) : null;
+    }
+
+    /** A note that says why a version was chosen, such as "no connection, using 9.5". */
+    private static String using(String reason, GrammarVersion version) {
+        return reason + ", using " + version.id();
     }
 
     private static GrammarVersion find(List<GrammarVersion> released, String id) {
