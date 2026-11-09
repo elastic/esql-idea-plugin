@@ -37,6 +37,9 @@ import java.util.Arrays;
 
 public class ITAutocompleteTest extends BasePlatformTestCase {
 
+    /** Number of commands offered after a pipe. */
+    private static final int EXPECTED_COMMAND_COUNT = 29;
+
     @Override
     protected void setUp() throws Exception {
         super.setUp();
@@ -167,7 +170,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(29, elements.length);
+        Assert.assertEquals(EXPECTED_COMMAND_COUNT, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -314,7 +317,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(29, elements.length);
+        Assert.assertEquals(EXPECTED_COMMAND_COUNT, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();
@@ -503,7 +506,7 @@ public class ITAutocompleteTest extends BasePlatformTestCase {
         elements = myFixture.completeBasic();
 
         Assert.assertNotNull(elements);
-        Assert.assertEquals(29, elements.length);
+        Assert.assertEquals(EXPECTED_COMMAND_COUNT, elements.length);
         LookupElement where = Arrays.stream(elements)
             .filter(le -> le.getLookupString().contains("WHERE"))
             .findFirst().get();

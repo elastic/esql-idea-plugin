@@ -84,6 +84,18 @@ public class EsqlGrammar95Tests {
             failures.isEmpty());
     }
 
+    private static void assertParsesInBothModes(List<String> queries) {
+        assertParses(queries, false);
+        assertParses(queries, true);
+    }
+
+    private static void assertFirstError(String query, int line, int charPositionInLine) {
+        List<SyntaxError> errors = syntaxErrors(query, false);
+        Assert.assertFalse(errors.isEmpty());
+        Assert.assertEquals(line, errors.getFirst().line());
+        Assert.assertEquals(charPositionInLine, errors.getFirst().charPositionInLine());
+    }
+
     private static final List<String> NEW_COMMANDS = List.of(
         "FROM test | URI_PARTS parts = last_name | STATS scheme_count = COUNT() BY parts.scheme | LIMIT 10",
         "FROM test | REGISTERED_DOMAIN rd = last_name | STATS c = COUNT() BY rd.registered_domain | LIMIT 10",
@@ -126,26 +138,22 @@ public class EsqlGrammar95Tests {
 
     @Test
     public void testNewCommandsParse() {
-        assertParses(NEW_COMMANDS, false);
-        assertParses(NEW_COMMANDS, true);
+        assertParsesInBothModes(NEW_COMMANDS);
     }
 
     @Test
     public void testSubqueriesParse() {
-        assertParses(SUBQUERIES, false);
-        assertParses(SUBQUERIES, true);
+        assertParsesInBothModes(SUBQUERIES);
     }
 
     @Test
     public void testByClausesParse() {
-        assertParses(BY_CLAUSES, false);
-        assertParses(BY_CLAUSES, true);
+        assertParsesInBothModes(BY_CLAUSES);
     }
 
     @Test
     public void testInExpressionsParse() {
-        assertParses(IN_EXPRESSIONS, false);
-        assertParses(IN_EXPRESSIONS, true);
+        assertParsesInBothModes(IN_EXPRESSIONS);
     }
 
     @Test
@@ -175,16 +183,9 @@ public class EsqlGrammar95Tests {
     @Test
     public void testErrorPositionAfterInSubquery() {
         String sameLine = "FROM a | WHERE x IN (FROM b | KEEP x) WHEE y";
-        List<SyntaxError> errors = syntaxErrors(sameLine, false);
-        Assert.assertFalse(errors.isEmpty());
-        Assert.assertEquals(1, errors.getFirst().line());
-        Assert.assertEquals(sameLine.indexOf("WHEE"), errors.getFirst().charPositionInLine());
+        assertFirstError(sameLine, 1, sameLine.indexOf("WHEE"));
 
-        String laterLine = "FROM a\n| WHERE x IN (\n  FROM b | KEEP x)\n| WHEE y";
-        errors = syntaxErrors(laterLine, false);
-        Assert.assertFalse(errors.isEmpty());
-        Assert.assertEquals(4, errors.getFirst().line());
-        Assert.assertEquals(2, errors.getFirst().charPositionInLine());
+        assertFirstError("FROM a\n| WHERE x IN (\n  FROM b | KEEP x)\n| WHEE y", 4, 2);
     }
 
     /**
