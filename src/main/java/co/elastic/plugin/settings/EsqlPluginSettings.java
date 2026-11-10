@@ -38,6 +38,12 @@ public class EsqlPluginSettings implements PersistentStateComponent<EsqlPluginSe
 
     public String activeConnectionName = "";
 
+    /** One of auto, on, off. */
+    public String devSyntax = "auto";
+
+    /** Grammar version id, or auto. Not used until version selection is added. */
+    public String esqlVersion = "auto";
+
     @Override
     public EsqlPluginSettings getState() {
         return this;

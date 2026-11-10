@@ -20,6 +20,7 @@ package co.elastic.plugin.autocomplete;
 
 import co.elastic.grammar.EsqlBaseLexer;
 import co.elastic.plugin.connection.EsqlPluginQueryManager;
+import co.elastic.plugin.version.GrammarSelection;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionProvider;
 import com.intellij.codeInsight.completion.CompletionResultSet;
@@ -83,7 +84,7 @@ public class EsqlCompletionProvider extends CompletionProvider<CompletionParamet
             return;
         }
 
-        var parserInfo = Parser.parse(text);
+        var parserInfo = Parser.parse(text, GrammarSelection.current().devSyntax());
         var completions = Completion.computeCompletions(parserInfo, queryManager);
         var lastToken = parserInfo.tokens().getLast();
         for (Completion c : completions) {
